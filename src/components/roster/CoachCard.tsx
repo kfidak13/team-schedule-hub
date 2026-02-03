@@ -1,0 +1,104 @@
+import { Coach } from '@/types/team';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Mail, Phone, Trash2, Edit } from 'lucide-react';
+
+interface CoachCardProps {
+  coach: Coach;
+  onEdit?: (coach: Coach) => void;
+  onDelete?: (id: string) => void;
+}
+
+const sportEmojis: Record<string, string> = {
+  tennis: '🎾',
+  basketball: '🏀',
+  soccer: '⚽',
+  volleyball: '🏐',
+  baseball: '⚾',
+  football: '🏈',
+  other: '🏆',
+};
+
+export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
+  const initials = coach.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  
+  return (
+    <Card className="group transition-shadow hover:shadow-md">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-4">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={coach.photo} alt={coach.name} />
+            <AvatarFallback className="bg-secondary text-secondary-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">{coach.name}</h3>
+              <Badge
+                variant={coach.role === 'Head Coach' ? 'default' : 'secondary'}
+              >
+                {coach.role}
+              </Badge>
+            </div>
+            
+            <div className="flex flex-wrap gap-1">
+              {coach.sports.map((sport) => (
+                <span key={sport} className="text-sm" title={sport}>
+                  {sportEmojis[sport]}
+                </span>
+              ))}
+            </div>
+            
+            <div className="flex flex-wrap gap-3 pt-2 text-sm text-muted-foreground">
+              {coach.email && (
+                <a
+                  href={`mailto:${coach.email}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{coach.email}</span>
+                </a>
+              )}
+              {coach.phone && (
+                <a
+                  href={`tel:${coach.phone}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  <span>{coach.phone}</span>
+                </a>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {onEdit && (
+              <Button variant="ghost" size="icon" onClick={() => onEdit(coach)}>
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(coach.id)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
