@@ -1,8 +1,10 @@
-import { Game, Sport, TeamInfo, Venue } from '@/types/team';
+import { Game, Sport, TeamInfo, Venue, Player, Coach } from '@/types/team';
 
 interface ParseResult {
   teamInfo: TeamInfo | null;
   games: Game[];
+  players: Player[];
+  coaches: Coach[];
 }
 
 export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseResult {
@@ -35,7 +37,10 @@ export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseR
     }
   });
   
-  return { teamInfo, games };
+  // Extract roster (players and coaches)
+  const { players, coaches } = parseRoster(doc, sport, teamInfo?.headCoach);
+  
+  return { teamInfo, games, players, coaches };
 }
 
 function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | null {
@@ -94,6 +99,70 @@ function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | 
     title,
     result,
   };
+}
+
+function parseRoster(doc: Document, sport: Sport, headCoachName?: string): { players: Player[]; coaches: Coach[] } {
+  const players: Player[] = [];
+  const coaches: Coach[] = [];
+  
+  // Add head coach if found in team info
+  if (headCoachName) {
+    coaches.push({
+      id: generateId(),
+      name: headCoachName,
+      role: 'Head Coach',
+      sports: [sport],
+    });
+  }
+  
+  // Look for roster section - common class patterns
+  const rosterSection = doc.querySelector('.roster, .team-roster, .athleticteamroster, [class*="roster"]');
+  
+  if (rosterSection) {
+    // Look for player rows
+    const playerRows = rosterSection.querySelectorAll('.player, .roster-player, tr[class*="player"], .roster-row');
+    
+    playerRows.forEach((row) => {
+      const nameEl = row.querySelector('.player-name, .name, td:first-child');
+      const numberEl = row.querySelector('.player-number, .jersey, .number, td:nth-child(2)');
+      const positionEl = row.querySelector('.player-position, .position, td:nth-child(3)');
+      
+      const name = nameEl?.textContent?.trim();
+      if (name) {
+        players.push({
+          id: generateId(),
+          name,
+          jerseyNumber: numberEl?.textContent?.trim() || undefined,
+          position: positionEl?.textContent?.trim() || undefined,
+          sports: [sport],
+        });
+      }
+    });
+    
+    // Look for coach rows
+    const coachRows = rosterSection.querySelectorAll('.coach, .roster-coach, tr[class*="coach"]');
+    
+    coachRows.forEach((row) => {
+      const nameEl = row.querySelector('.coach-name, .name, td:first-child');
+      const roleEl = row.querySelector('.coach-role, .role, td:nth-child(2)');
+      
+      const name = nameEl?.textContent?.trim();
+      if (name && name !== headCoachName) {
+        const roleText = roleEl?.textContent?.trim()?.toLowerCase() || '';
+        const role: Coach['role'] = roleText.includes('head') ? 'Head Coach' : 
+                                    roleText.includes('assistant') ? 'Assistant Coach' : 'Volunteer';
+        
+        coaches.push({
+          id: generateId(),
+          name,
+          role,
+          sports: [sport],
+        });
+      }
+    });
+  }
+  
+  return { players, coaches };
 }
 
 function parseDate(dateStr: string): Date | null {

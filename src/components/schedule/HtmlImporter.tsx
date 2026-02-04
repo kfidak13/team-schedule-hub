@@ -3,7 +3,7 @@ import { parseScheduleHtml } from '@/lib/htmlParser';
 import { useTeam } from '@/context/TeamContext';
 import { Sport } from '@/types/team';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, FileCode, Check } from 'lucide-react';
+import { Link, Loader2, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const sportOptions: { value: Sport; label: string }[] = [
@@ -33,87 +33,126 @@ const sportOptions: { value: Sport; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+// CORS proxy to fetch external URLs
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
 export function HtmlImporter() {
   const [open, setOpen] = useState(false);
-  const [html, setHtml] = useState('');
+  const [url, setUrl] = useState('');
   const [sport, setSport] = useState<Sport>('tennis');
-  const [preview, setPreview] = useState<{ count: number; teamName?: string } | null>(null);
-  const { addGames, addTeamInfo } = useTeam();
+  const [isLoading, setIsLoading] = useState(false);
+  const [preview, setPreview] = useState<{ 
+    games: number; 
+    players: number; 
+    coaches: number; 
+    teamName?: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { addGames, addTeamInfo, addPlayers, addCoaches } = useTeam();
   
-  const handlePreview = () => {
-    if (!html.trim()) {
-      toast.error('Please paste your HTML schedule first');
-      return;
+  const fetchAndParse = async () => {
+    if (!url.trim()) {
+      setError('Please enter a URL');
+      return null;
     }
     
-    const result = parseScheduleHtml(html, sport);
-    setPreview({
-      count: result.games.length,
-      teamName: result.teamInfo?.name,
-    });
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Use CORS proxy to fetch the URL
+      const response = await fetch(CORS_PROXY + encodeURIComponent(url.trim()));
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      const result = parseScheduleHtml(html, sport);
+      
+      return result;
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch URL');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  const handleImport = () => {
-    if (!html.trim()) {
-      toast.error('Please paste your HTML schedule first');
+  const handlePreview = async () => {
+    const result = await fetchAndParse();
+    if (result) {
+      setPreview({
+        games: result.games.length,
+        players: result.players.length,
+        coaches: result.coaches.length,
+        teamName: result.teamInfo?.name,
+      });
+    }
+  };
+  
+  const handleImport = async () => {
+    const result = await fetchAndParse();
+    
+    if (!result) return;
+    
+    if (result.games.length === 0 && result.players.length === 0 && result.coaches.length === 0) {
+      toast.error('No data found at this URL. Please check the URL is correct.');
       return;
     }
     
-    const result = parseScheduleHtml(html, sport);
-    
-    if (result.games.length === 0) {
-      toast.error('No games found in the HTML. Please check the format.');
-      return;
+    // Import all data
+    if (result.games.length > 0) {
+      addGames(result.games);
     }
-    
-    addGames(result.games);
     
     if (result.teamInfo) {
       addTeamInfo(result.teamInfo);
     }
     
-    toast.success(`Imported ${result.games.length} games!`);
-    setHtml('');
+    if (result.players.length > 0) {
+      addPlayers(result.players);
+    }
+    
+    if (result.coaches.length > 0) {
+      addCoaches(result.coaches);
+    }
+    
+    const parts = [];
+    if (result.games.length > 0) parts.push(`${result.games.length} games`);
+    if (result.players.length > 0) parts.push(`${result.players.length} players`);
+    if (result.coaches.length > 0) parts.push(`${result.coaches.length} coaches`);
+    
+    toast.success(`Imported ${parts.join(', ')}!`);
+    setUrl('');
     setPreview(null);
     setOpen(false);
-  };
-  
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setHtml(content);
-      setPreview(null);
-    };
-    reader.readAsText(file);
   };
   
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="gap-2">
-          <Upload className="h-4 w-4" />
-          Import Schedule
+          <Link className="h-4 w-4" />
+          Import from URL
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileCode className="h-5 w-5" />
-            Import HTML Schedule
+            <Link className="h-5 w-5" />
+            Import Schedule & Roster
           </DialogTitle>
           <DialogDescription>
-            Paste the HTML from your school's athletic schedule page or upload an HTML file.
+            Enter the URL of your school's athletic team page to import the schedule and roster.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="sport">Sport</Label>
-            <Select value={sport} onValueChange={(v) => { setSport(v as Sport); setPreview(null); }}>
+            <Select value={sport} onValueChange={(v) => { setSport(v as Sport); setPreview(null); setError(null); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select sport" />
               </SelectTrigger>
@@ -128,48 +167,70 @@ export function HtmlImporter() {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="html">HTML Content</Label>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <label className="cursor-pointer">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload File
-                  <input
-                    type="file"
-                    accept=".html,.htm"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                </label>
-              </Button>
-            </div>
-            <Textarea
-              id="html"
-              placeholder="Paste your HTML schedule here..."
-              value={html}
-              onChange={(e) => { setHtml(e.target.value); setPreview(null); }}
-              className="min-h-[200px] font-mono text-xs"
+            <Label htmlFor="url">Team Page URL</Label>
+            <Input
+              id="url"
+              type="url"
+              placeholder="https://yourschool.org/athletics/team/..."
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setPreview(null); setError(null); }}
             />
+            <p className="text-xs text-muted-foreground">
+              Paste the full URL to your team's schedule page
+            </p>
           </div>
           
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          
           {preview && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 text-primary">
                 <Check className="h-5 w-5" />
-                <span className="font-medium">
-                  Found {preview.count} games
-                  {preview.teamName && ` for ${preview.teamName}`}
-                </span>
+                <div>
+                  <span className="font-medium">
+                    {preview.teamName && `${preview.teamName}: `}
+                  </span>
+                  <span>
+                    Found {preview.games} games, {preview.coaches} coaches
+                    {preview.players > 0 && `, ${preview.players} players`}
+                  </span>
+                </div>
               </div>
             </div>
           )}
           
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handlePreview}>
-              Preview
+            <Button 
+              variant="outline" 
+              onClick={handlePreview}
+              disabled={!url.trim() || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fetching...
+                </>
+              ) : (
+                'Preview'
+              )}
             </Button>
-            <Button onClick={handleImport} disabled={!html.trim()}>
-              Import Games
+            <Button 
+              onClick={handleImport} 
+              disabled={!url.trim() || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                'Import'
+              )}
             </Button>
           </div>
         </div>
