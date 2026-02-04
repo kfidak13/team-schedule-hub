@@ -17,12 +17,14 @@ interface TeamContextType {
   // Players
   players: Player[];
   addPlayer: (player: Omit<Player, 'id'>) => void;
+  addPlayers: (players: Player[]) => void;
   updatePlayer: (id: string, player: Partial<Player>) => void;
   deletePlayer: (id: string) => void;
   
   // Coaches
   coaches: Coach[];
   addCoach: (coach: Omit<Coach, 'id'>) => void;
+  addCoaches: (coaches: Coach[]) => void;
   updateCoach: (id: string, coach: Partial<Coach>) => void;
   deleteCoach: (id: string) => void;
   
@@ -113,6 +115,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setPlayers(prev => [...prev, { ...player, id: generateId() }]);
   };
   
+  const addPlayers = (newPlayers: Player[]) => {
+    setPlayers(prev => {
+      // Avoid duplicates by name
+      const existingNames = new Set(prev.map(p => p.name.toLowerCase()));
+      const uniqueNew = newPlayers.filter(p => !existingNames.has(p.name.toLowerCase()));
+      return [...prev, ...uniqueNew];
+    });
+  };
+  
   const updatePlayer = (id: string, player: Partial<Player>) => {
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...player } : p));
   };
@@ -123,6 +134,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const addCoach = (coach: Omit<Coach, 'id'>) => {
     setCoaches(prev => [...prev, { ...coach, id: generateId() }]);
+  };
+  
+  const addCoaches = (newCoaches: Coach[]) => {
+    setCoaches(prev => {
+      // Avoid duplicates by name
+      const existingNames = new Set(prev.map(c => c.name.toLowerCase()));
+      const uniqueNew = newCoaches.filter(c => !existingNames.has(c.name.toLowerCase()));
+      return [...prev, ...uniqueNew];
+    });
   };
   
   const updateCoach = (id: string, coach: Partial<Coach>) => {
@@ -163,10 +183,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       deleteGame,
       players,
       addPlayer,
+      addPlayers,
       updatePlayer,
       deletePlayer,
       coaches,
       addCoach,
+      addCoaches,
       updateCoach,
       deleteCoach,
       teamInfos,
