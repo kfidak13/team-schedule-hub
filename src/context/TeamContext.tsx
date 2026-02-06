@@ -75,24 +75,25 @@ function saveToStorage(data: StoredData) {
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const [currentSport, setCurrentSport] = useState<Sport | 'all'>('all');
-  const [games, setGames] = useState<Game[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [coaches, setCoaches] = useState<Coach[]>([]);
-  const [teamInfos, setTeamInfos] = useState<TeamInfo[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   
-  // Load data on mount
+  // Initialize state from localStorage
+  const initialData = loadFromStorage();
+  const [games, setGames] = useState<Game[]>(initialData.games);
+  const [players, setPlayers] = useState<Player[]>(initialData.players);
+  const [coaches, setCoaches] = useState<Coach[]>(initialData.coaches);
+  const [teamInfos, setTeamInfos] = useState<TeamInfo[]>(initialData.teamInfos);
+  
+  // Mark as loaded after first render
   useEffect(() => {
-    const data = loadFromStorage();
-    setGames(data.games);
-    setPlayers(data.players);
-    setCoaches(data.coaches);
-    setTeamInfos(data.teamInfos);
+    setIsLoaded(true);
   }, []);
   
-  // Save data on changes
+  // Save data on changes (only after initial load)
   useEffect(() => {
+    if (!isLoaded) return;
     saveToStorage({ games, players, coaches, teamInfos });
-  }, [games, players, coaches, teamInfos]);
+  }, [games, players, coaches, teamInfos, isLoaded]);
   
   const addGame = (game: Omit<Game, 'id'>) => {
     setGames(prev => [...prev, { ...game, id: generateId() }]);

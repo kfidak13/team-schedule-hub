@@ -2,6 +2,7 @@ import { useTeam } from '@/context/TeamContext';
 import { PlayerCard } from '@/components/roster/PlayerCard';
 import { CoachCard } from '@/components/roster/CoachCard';
 import { AddPersonDialog } from '@/components/roster/AddPersonDialog';
+import { RosterImporter } from '@/components/roster/RosterImporter';
 import { SportSelector } from '@/components/dashboard/SportSelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ export default function Roster() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <RosterImporter />
           <AddPersonDialog type="player" />
           <AddPersonDialog type="coach" />
         </div>
