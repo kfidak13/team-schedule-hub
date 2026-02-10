@@ -33,8 +33,41 @@ const sportOptions: { value: Sport; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-// CORS proxy to fetch external URLs
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+// Use local proxy server (must be running on port 3001)
+const PROXY_URL = 'http://localhost:3001/api/proxy?url=';
+
+async function fetchWithProxy(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(PROXY_URL + encodeURIComponent(url), {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.text();
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('Request timed out. Try again.');
+    }
+    if (err instanceof TypeError) {
+      throw new Error('Proxy server not running (or blocked). Please start it with: npm run proxy');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 export function HtmlImporter() {
   const [open, setOpen] = useState(false);
@@ -61,13 +94,7 @@ export function HtmlImporter() {
     
     try {
       // Use CORS proxy to fetch the URL
-      const response = await fetch(CORS_PROXY + encodeURIComponent(url.trim()));
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
-      }
-      
-      const html = await response.text();
+      const html = await fetchWithProxy(url.trim());
       const result = parseScheduleHtml(html, sport);
       
       return result;
