@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Trophy, Target, TrendingUp, Calendar, Users, Percent } from 'lucide-react';
 
 export default function TeamStats() {
-  const { games, players, coaches, currentSport, getRecord } = useTeam();
+  const { games, players, coaches, currentSport, getRecord, importedStats } = useTeam();
 
   const filteredGames = currentSport === 'all' 
     ? games 
@@ -15,9 +15,14 @@ export default function TeamStats() {
     ? getRecord() 
     : getRecord(currentSport as any);
 
+  const statsForSport = currentSport === 'all' ? undefined : importedStats[currentSport];
+  const overallImported = statsForSport?.overall;
+
   const totalGames = filteredGames.length;
   const completedGames = filteredGames.filter(g => g.result).length;
-  const winRate = completedGames > 0 ? Math.round((record.wins / completedGames) * 100) : 0;
+  const computedWinRate = completedGames > 0 ? Math.round((record.wins / completedGames) * 100) : 0;
+  const importedWinRate = overallImported ? Math.round(overallImported.pct) : undefined;
+  const winRate = importedWinRate ?? computedWinRate;
 
   const homeGames = filteredGames.filter(g => g.venue === 'Home').length;
   const awayGames = filteredGames.filter(g => g.venue === 'Away').length;
@@ -47,10 +52,10 @@ export default function TeamStats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {record.wins} - {record.losses}
+              {overallImported ? `${overallImported.wins} - ${overallImported.losses}` : `${record.wins} - ${record.losses}`}
             </div>
             <p className="text-xs text-muted-foreground">
-              {completedGames} games played
+              {overallImported ? 'Imported team record' : `${completedGames} games played`}
             </p>
           </CardContent>
         </Card>
@@ -63,6 +68,11 @@ export default function TeamStats() {
           <CardContent>
             <div className="text-2xl font-bold">{winRate}%</div>
             <Progress value={winRate} className="mt-2" />
+            {overallImported && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Imported from team page
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -103,6 +113,30 @@ export default function TeamStats() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {statsForSport?.league && statsForSport?.nonLeague && (
+              <div className="rounded-lg border bg-card p-3">
+                <div className="grid gap-2 text-sm sm:grid-cols-3">
+                  <div>
+                    <div className="text-muted-foreground">League</div>
+                    <div className="font-medium">
+                      {statsForSport.league.wins}-{statsForSport.league.losses}-{statsForSport.league.ties} ({statsForSport.league.pct}%)
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Non-League</div>
+                    <div className="font-medium">
+                      {statsForSport.nonLeague.wins}-{statsForSport.nonLeague.losses}-{statsForSport.nonLeague.ties} ({statsForSport.nonLeague.pct}%)
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Overall</div>
+                    <div className="font-medium">
+                      {statsForSport.overall?.wins ?? '-'}-{statsForSport.overall?.losses ?? '-'}-{statsForSport.overall?.ties ?? '-'} ({statsForSport.overall?.pct ?? '-'}%)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Home Games</span>

@@ -4,11 +4,22 @@ import { CoachCard } from '@/components/roster/CoachCard';
 import { AddPersonDialog } from '@/components/roster/AddPersonDialog';
 import { RosterImporter } from '@/components/roster/RosterImporter';
 import { SportSelector } from '@/components/dashboard/SportSelector';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, Users, Shield } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function Roster() {
   const { players, coaches, currentSport, deletePlayer, deleteCoach } = useTeam();
+  const location = useLocation();
+
+  const activeView = location.pathname.includes('/roster/coaches') ? 'coaches' : 'players';
   
   // Filter by current sport
   const filteredPlayers = currentSport === 'all'
@@ -38,7 +49,31 @@ export default function Roster() {
             Manage your team's players and coaches
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                {activeView === 'players' ? <Users className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                {activeView === 'players' ? `Players (${filteredPlayers.length})` : `Coaches (${filteredCoaches.length})`}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link to="/roster/players" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Players ({filteredPlayers.length})
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/roster/coaches" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Coaches ({filteredCoaches.length})
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <RosterImporter />
           <AddPersonDialog type="player" />
           <AddPersonDialog type="coach" />
@@ -47,17 +82,8 @@ export default function Roster() {
       
       <SportSelector />
       
-      <Tabs defaultValue="players" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="players">
-            Players ({filteredPlayers.length})
-          </TabsTrigger>
-          <TabsTrigger value="coaches">
-            Coaches ({filteredCoaches.length})
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="players" className="space-y-3">
+      {activeView === 'players' ? (
+        <div className="space-y-3">
           {filteredPlayers.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-muted-foreground">
@@ -66,16 +92,12 @@ export default function Roster() {
             </div>
           ) : (
             filteredPlayers.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                onDelete={handleDeletePlayer}
-              />
+              <PlayerCard key={player.id} player={player} onDelete={handleDeletePlayer} />
             ))
           )}
-        </TabsContent>
-        
-        <TabsContent value="coaches" className="space-y-3">
+        </div>
+      ) : (
+        <div className="space-y-3">
           {filteredCoaches.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-muted-foreground">
@@ -84,15 +106,11 @@ export default function Roster() {
             </div>
           ) : (
             filteredCoaches.map((coach) => (
-              <CoachCard
-                key={coach.id}
-                coach={coach}
-                onDelete={handleDeleteCoach}
-              />
+              <CoachCard key={coach.id} coach={coach} onDelete={handleDeleteCoach} />
             ))
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

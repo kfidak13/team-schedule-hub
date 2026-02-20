@@ -30,6 +30,13 @@ const sportOptions: { value: Sport; label: string }[] = [
   { value: 'volleyball', label: 'Volleyball' },
   { value: 'baseball', label: 'Baseball' },
   { value: 'football', label: 'Football' },
+  { value: 'badminton', label: 'Badminton' },
+  { value: 'swim', label: 'Swim' },
+  { value: 'cross_country', label: 'Cross Country' },
+  { value: 'water_polo', label: 'Water Polo' },
+  { value: 'golf', label: 'Golf' },
+  { value: 'wrestling', label: 'Wrestling' },
+  { value: 'swim_dive', label: 'Swim and Dive' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -79,9 +86,10 @@ export function HtmlImporter() {
     players: number; 
     coaches: number; 
     teamName?: string;
+    hasStats?: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { addGames, addTeamInfo, addPlayers, addCoaches } = useTeam();
+  const { replaceGamesForSport, addTeamInfo, addPlayers, addCoaches, addImportedStats } = useTeam();
   
   const fetchAndParse = async () => {
     if (!url.trim()) {
@@ -115,6 +123,7 @@ export function HtmlImporter() {
         players: result.players.length,
         coaches: result.coaches.length,
         teamName: result.teamInfo?.name,
+        hasStats: !!result.importedStats,
       });
     }
   };
@@ -124,14 +133,14 @@ export function HtmlImporter() {
     
     if (!result) return;
     
-    if (result.games.length === 0 && result.players.length === 0 && result.coaches.length === 0) {
+    if (result.games.length === 0 && result.players.length === 0 && result.coaches.length === 0 && !result.importedStats) {
       toast.error('No data found at this URL. Please check the URL is correct.');
       return;
     }
     
     // Import all data
     if (result.games.length > 0) {
-      addGames(result.games);
+      replaceGamesForSport(sport, result.games);
     }
     
     if (result.teamInfo) {
@@ -145,11 +154,16 @@ export function HtmlImporter() {
     if (result.coaches.length > 0) {
       addCoaches(result.coaches);
     }
+
+    if (result.importedStats) {
+      addImportedStats(sport, result.importedStats);
+    }
     
     const parts = [];
     if (result.games.length > 0) parts.push(`${result.games.length} games`);
     if (result.players.length > 0) parts.push(`${result.players.length} players`);
     if (result.coaches.length > 0) parts.push(`${result.coaches.length} coaches`);
+    if (result.importedStats) parts.push('team stats');
     
     toast.success(`Imported ${parts.join(', ')}!`);
     setUrl('');

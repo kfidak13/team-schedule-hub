@@ -30,6 +30,13 @@ const sportOptions: { value: Sport; label: string }[] = [
   { value: 'volleyball', label: 'Volleyball' },
   { value: 'baseball', label: 'Baseball' },
   { value: 'football', label: 'Football' },
+  { value: 'badminton', label: 'Badminton' },
+  { value: 'swim', label: 'Swim' },
+  { value: 'cross_country', label: 'Cross Country' },
+  { value: 'water_polo', label: 'Water Polo' },
+  { value: 'golf', label: 'Golf' },
+  { value: 'wrestling', label: 'Wrestling' },
+  { value: 'swim_dive', label: 'Swim and Dive' },
   { value: 'other', label: 'Other' },
 ];
 

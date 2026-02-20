@@ -12,12 +12,11 @@ export default function Schedule() {
             View and manage your team's games and events
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <SportSelector />
           <HtmlImporter />
         </div>
       </div>
-      
-      <SportSelector />
       
       <ScheduleList />
     </div>

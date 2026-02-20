@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Avatar silhouette">
+  <rect width="128" height="128" rx="64" fill="hsl(220 16% 16%)"/>
+  <circle cx="64" cy="48" r="26" fill="hsl(215 12% 70%)" opacity="0.85"/>
+  <path d="M24 120c4-26 22-44 40-44h0c18 0 36 18 40 44" fill="hsl(215 12% 70%)" opacity="0.85"/>
+</svg>

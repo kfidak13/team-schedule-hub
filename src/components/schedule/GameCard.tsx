@@ -2,7 +2,7 @@ import { Game } from '@/types/team';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Clock, MapPin, Trash2, Edit } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, Edit, Trophy } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -13,16 +13,6 @@ interface GameCardProps {
 }
 
 export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
-  const sportEmojis: Record<string, string> = {
-    tennis: '🎾',
-    basketball: '🏀',
-    soccer: '⚽',
-    volleyball: '🏐',
-    baseball: '⚾',
-    football: '🏈',
-    other: '🏆',
-  };
-  
   return (
     <Card className="group transition-shadow hover:shadow-md">
       <CardContent className="p-4">
@@ -30,7 +20,9 @@ export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
           <div className="flex-1 space-y-2">
             {/* Header with opponent and badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-lg">{sportEmojis[game.sport]}</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary ring-1 ring-border">
+                <Trophy className="h-4 w-4" />
+              </span>
               <h3 className="font-semibold">
                 {game.title || (game.opponent ? `vs. ${game.opponent}` : 'Game')}
               </h3>

@@ -1,25 +1,17 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useMemo } from 'react';
 import type { ElementType } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  Calendar,
-  Users,
-  LayoutDashboard,
-  Menu,
-  X,
-  ChevronDown,
-  ChevronRight,
-  Trophy,
-  BarChart3,
-  Upload,
-  List,
-  UserCircle,
-  Shield,
-  Gamepad2,
-} from 'lucide-react';
+import { Calendar, Users, LayoutDashboard, BarChart3, Trophy, Upload, List, UserCircle, Shield, Gamepad2, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -60,157 +52,116 @@ const navSections: NavSection[] = [
   },
 ];
 
-function NavItem({
-  section,
-  location,
-  isMobile,
-  onNavigate,
-}: {
-  section: NavSection;
-  location: ReturnType<typeof useLocation>;
-  isMobile?: boolean;
-  onNavigate?: () => void;
-}) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (!section.children) return false;
-    return section.children.some((child) => location.pathname === child.path || location.pathname.startsWith(child.path));
-  });
-
-  const isActive = section.path
-    ? location.pathname === section.path
-    : section.children?.some((child) => location.pathname === child.path || location.pathname.startsWith(child.path));
-
-  if (!section.children) {
-    return (
-      <Link
-        to={section.path!}
-        onClick={onNavigate}
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-          isActive
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-        )}
-      >
-        <section.icon className="h-4 w-4" />
-        {section.label}
-      </Link>
-    );
-  }
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <button
-          className={cn(
-            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-            isActive
-              ? 'bg-primary/10 text-primary'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <section.icon className="h-4 w-4" />
-            {section.label}
-          </div>
-          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-1 space-y-1 border-l-2 border-border pl-4">
-          {section.children.map((child) => (
-            <Link
-              key={child.path}
-              to={child.path}
-              onClick={onNavigate}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                location.pathname === child.path
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              <child.icon className="h-4 w-4" />
-              {child.label}
-            </Link>
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const activeSectionLabel = useMemo(() => {
+    const found = navSections.find((s) => {
+      if (s.path) return location.pathname === s.path;
+      return s.children?.some((c) => location.pathname === c.path || location.pathname.startsWith(c.path));
+    });
+    return found?.label;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Trophy className="h-5 w-5 text-primary-foreground" />
+      <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 ring-1 ring-border">
+              <Trophy className="h-5 w-5 text-primary" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold tracking-tight">Team Hub</div>
+              <div className="text-xs text-muted-foreground">Schedule Manager</div>
+            </div>
           </div>
-          <h1 className="text-lg font-bold text-foreground">Team Hub</h1>
+
+          <nav className="hidden items-center gap-1 md:flex">
+            <Link
+              to="/"
+              className={cn(
+                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                location.pathname === '/' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              )}
+            >
+              Dashboard
+            </Link>
+
+            {navSections
+              .filter((s) => s.children)
+              .map((section) => (
+                <DropdownMenu key={section.label}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        'h-9 gap-2 px-3 text-sm font-medium',
+                        activeSectionLabel === section.label && 'bg-accent text-accent-foreground'
+                      )}
+                    >
+                      <section.icon className="h-4 w-4" />
+                      {section.label}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {section.children?.map((child) => (
+                      <DropdownMenuItem key={child.path} asChild>
+                        <Link to={child.path} className="flex items-center gap-2">
+                          <child.icon className="h-4 w-4" />
+                          {child.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ))}
+          </nav>
+
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuItem asChild>
+                  <Link to="/" className="flex items-center gap-2">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                {navSections
+                  .filter((s) => s.children)
+                  .map((section) => (
+                    <div key={section.label}>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="flex items-center gap-2">
+                        <section.icon className="h-4 w-4" />
+                        {section.label}
+                      </DropdownMenuLabel>
+                      {section.children?.map((child) => (
+                        <DropdownMenuItem key={child.path} asChild>
+                          <Link to={child.path} className="flex items-center gap-2">
+                            <child.icon className="h-4 w-4" />
+                            {child.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
       </header>
 
-      {/* Mobile menu overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile menu */}
-      <nav
-        className={cn(
-          'fixed right-0 top-0 z-50 h-full w-72 transform bg-card shadow-lg transition-transform duration-200 md:hidden',
-          mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
-        )}
-      >
-        <div className="flex items-center justify-between border-b p-4">
-          <span className="font-semibold">Menu</span>
-          <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="space-y-1 p-4">
-          {navSections.map((section) => (
-            <NavItem key={section.label} section={section} location={location} isMobile onNavigate={() => setMobileMenuOpen(false)} />
-          ))}
-        </div>
-      </nav>
-
-      <div className="flex">
-        {/* Desktop sidebar */}
-        <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
-          <div className="sticky top-0 h-screen overflow-y-auto p-6">
-            <div className="mb-8 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-                <Trophy className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Team Hub</h1>
-                <p className="text-xs text-muted-foreground">Schedule Manager</p>
-              </div>
-            </div>
-            <nav className="space-y-1">
-              {navSections.map((section) => (
-                <NavItem key={section.label} section={section} location={location} />
-              ))}
-            </nav>
-          </div>
-        </aside>
-
-        {/* Main content */}
-        <main className="flex-1 p-4 md:p-8">{children}</main>
-      </div>
+      <main className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+        {children}
+      </main>
     </div>
   );
 }

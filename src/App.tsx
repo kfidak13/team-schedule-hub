@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TeamProvider } from "./context/TeamContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import GetStarted from "./pages/GetStarted";
 import Schedule from "./pages/Schedule";
 import Roster from "./pages/Roster";
 import TeamStats from "./pages/TeamStats";
@@ -23,6 +24,7 @@ const App = () => (
           <AppLayout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/get-started" element={<GetStarted />} />
               
               {/* Schedule Branch */}
               <Route path="/schedule" element={<Schedule />} />

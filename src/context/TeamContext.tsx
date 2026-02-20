@@ -1,16 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Game, Player, Coach, Sport, TeamInfo } from '@/types/team';
+import { Game, Player, Coach, Sport, TeamInfo, ImportedTeamStats, Program } from '@/types/team';
 import { generateId } from '@/lib/htmlParser';
 
 interface TeamContextType {
   // Current sport filter
   currentSport: Sport | 'all';
   setCurrentSport: (sport: Sport | 'all') => void;
+
+  // Current program filter
+  currentProgram?: Program;
+  setCurrentProgram: (program: Program) => void;
   
   // Games
   games: Game[];
   addGame: (game: Omit<Game, 'id'>) => void;
   addGames: (games: Omit<Game, 'id'>[]) => void;
+  replaceGamesForSport: (sport: Sport, games: Game[]) => void;
   updateGame: (id: string, game: Partial<Game>) => void;
   deleteGame: (id: string) => void;
   
@@ -31,6 +36,10 @@ interface TeamContextType {
   // Team Info
   teamInfos: TeamInfo[];
   addTeamInfo: (info: TeamInfo) => void;
+
+  // Imported Team Stats
+  importedStats: Partial<Record<Sport, ImportedTeamStats>>;
+  addImportedStats: (sport: Sport, stats: ImportedTeamStats) => void;
   
   // Stats
   getRecord: (sport?: Sport) => { wins: number; losses: number };
@@ -45,6 +54,8 @@ interface StoredData {
   players: Player[];
   coaches: Coach[];
   teamInfos: TeamInfo[];
+  importedStats: Partial<Record<Sport, ImportedTeamStats>>;
+  currentProgram?: Program;
 }
 
 function loadFromStorage(): StoredData {
@@ -62,7 +73,7 @@ function loadFromStorage(): StoredData {
   } catch (e) {
     console.error('Failed to load from storage:', e);
   }
-  return { games: [], players: [], coaches: [], teamInfos: [] };
+  return { games: [], players: [], coaches: [], teamInfos: [], importedStats: {}, currentProgram: undefined };
 }
 
 function saveToStorage(data: StoredData) {
@@ -83,6 +94,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<Player[]>(initialData.players);
   const [coaches, setCoaches] = useState<Coach[]>(initialData.coaches);
   const [teamInfos, setTeamInfos] = useState<TeamInfo[]>(initialData.teamInfos);
+  const [importedStats, setImportedStats] = useState<Partial<Record<Sport, ImportedTeamStats>>>(initialData.importedStats || {});
+  const [currentProgram, setCurrentProgramState] = useState<Program | undefined>(initialData.currentProgram);
   
   // Mark as loaded after first render
   useEffect(() => {
@@ -92,8 +105,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   // Save data on changes (only after initial load)
   useEffect(() => {
     if (!isLoaded) return;
-    saveToStorage({ games, players, coaches, teamInfos });
-  }, [games, players, coaches, teamInfos, isLoaded]);
+    saveToStorage({ games, players, coaches, teamInfos, importedStats, currentProgram });
+  }, [games, players, coaches, teamInfos, importedStats, currentProgram, isLoaded]);
+
+  const setCurrentProgram = (program: Program) => {
+    setCurrentProgramState(program);
+    setCurrentSport(program.sport);
+  };
   
   const addGame = (game: Omit<Game, 'id'>) => {
     setGames(prev => [...prev, { ...game, id: generateId() }]);
@@ -102,6 +120,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addGames = (newGames: Omit<Game, 'id'>[]) => {
     const gamesWithIds = newGames.map(g => ({ ...g, id: generateId() }));
     setGames(prev => [...prev, ...gamesWithIds]);
+  };
+
+  const replaceGamesForSport = (sport: Sport, newGames: Game[]) => {
+    setGames(prev => {
+      const kept = prev.filter(g => g.sport !== sport);
+      return [...kept, ...newGames];
+    });
   };
   
   const updateGame = (id: string, game: Partial<Game>) => {
@@ -161,6 +186,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       return [...filtered, info];
     });
   };
+
+  const addImportedStats = (sport: Sport, stats: ImportedTeamStats) => {
+    setImportedStats(prev => ({ ...prev, [sport]: stats }));
+  };
   
   const getRecord = (sport?: Sport) => {
     const filteredGames = sport 
@@ -177,9 +206,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     <TeamContext.Provider value={{
       currentSport,
       setCurrentSport,
+      currentProgram,
+      setCurrentProgram,
       games,
       addGame,
       addGames,
+      replaceGamesForSport,
       updateGame,
       deleteGame,
       players,
@@ -194,6 +226,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       deleteCoach,
       teamInfos,
       addTeamInfo,
+      importedStats,
+      addImportedStats,
       getRecord,
     }}>
       {children}

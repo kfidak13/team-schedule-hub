@@ -1,10 +1,11 @@
-import { Game, Sport, TeamInfo, Venue, Player, Coach } from '@/types/team';
+import { Game, Sport, TeamInfo, Venue, Player, Coach, ImportedTeamStats, WinLossStats } from '@/types/team';
 
 interface ParseResult {
   teamInfo: TeamInfo | null;
   games: Game[];
   players: Player[];
   coaches: Coach[];
+  importedStats?: ImportedTeamStats;
 }
 
 export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseResult {
@@ -39,8 +40,11 @@ export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseR
   
   // Extract roster (players and coaches)
   const { players, coaches } = parseRoster(doc, sport, teamInfo?.headCoach);
+
+  // Extract team stats (W/L/T/%) if present
+  const importedStats = parseTeamStats(doc);
   
-  return { teamInfo, games, players, coaches };
+  return { teamInfo, games, players, coaches, importedStats };
 }
 
 function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | null {
@@ -80,11 +84,49 @@ function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | 
   const score = scoreEl?.textContent?.trim();
   
   let result = undefined;
-  if (winloss && score) {
-    result = {
-      won: winloss.toLowerCase() === 'w',
-      score,
-    };
+  const parseResultFromText = (text?: string) => {
+    if (!text) return undefined;
+    const normalized = text.replace(/\s+/g, ' ').trim();
+
+    // Examples: "W 3-2", "L, 1-2", "Win 10-4", "Loss 2-3"
+    const match = normalized.match(/\b(w|l|win|loss)\b\s*[:\-,]?\s*([0-9]+\s*[-–]\s*[0-9]+)/i);
+    if (!match) return undefined;
+
+    const wl = match[1].toLowerCase();
+    const won = wl === 'w' || wl === 'win';
+    const score = match[2].replace(/\s*/g, '').replace('–', '-');
+    return { won, score };
+  };
+
+  // Primary: many school schedule pages encode Win/Loss in the element class
+  if (winlossEl && score) {
+    const isWinClass = winlossEl.classList.contains('Win');
+    const isLossClass = winlossEl.classList.contains('Loss');
+    if (isWinClass || isLossClass) {
+      result = {
+        won: isWinClass,
+        score,
+      };
+    }
+  }
+
+  // Prefer separated W/L and score when present
+  if (!result && winloss && score) {
+    const normalizedWL = winloss.replace(/\s+/g, ' ').trim().toLowerCase();
+    const isWin = /^w\b/.test(normalizedWL) || normalizedWL.startsWith('win');
+    const isLoss = /^l\b/.test(normalizedWL) || normalizedWL.startsWith('loss');
+
+    if (isWin || isLoss) {
+      result = {
+        won: isWin,
+        score,
+      };
+    }
+  }
+
+  // Fallback: sometimes result+score are combined in one element
+  if (!result) {
+    result = parseResultFromText(winloss) || parseResultFromText(gameEl.textContent || undefined);
   }
   
   return {
@@ -104,6 +146,12 @@ function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | 
 function parseRoster(doc: Document, sport: Sport, headCoachName?: string): { players: Player[]; coaches: Coach[] } {
   const players: Player[] = [];
   const coaches: Coach[] = [];
+
+  const normalizeImageUrl = (src: string) => {
+    const trimmed = src.trim();
+    if (trimmed.startsWith('//')) return `https:${trimmed}`;
+    return trimmed;
+  };
   
   // Add head coach if found in team info
   if (headCoachName) {
@@ -119,6 +167,24 @@ function parseRoster(doc: Document, sport: Sport, headCoachName?: string): { pla
   const rosterSection = doc.querySelector('.roster, .team-roster, .athleticteamroster, [class*="roster"]');
   
   if (rosterSection) {
+    // Webb-style roster: <li class="roster-entry"> ... <a class="player-name-link">Name</a> ... <div class="hometown">Town</div>
+    const rosterEntries = rosterSection.querySelectorAll('li.roster-entry');
+    rosterEntries.forEach((entry) => {
+      const nameEl = entry.querySelector('a.player-name-link, .player-name-link');
+      const name = nameEl?.textContent?.trim();
+      if (!name) return;
+
+      const hometownEl = entry.querySelector('.hometown');
+      const hometown = hometownEl?.textContent?.trim() || undefined;
+
+      players.push({
+        id: generateId(),
+        name,
+        hometown,
+        sports: [sport],
+      });
+    });
+
     // Look for player rows
     const playerRows = rosterSection.querySelectorAll('.player, .roster-player, tr[class*="player"], .roster-row');
     
@@ -129,13 +195,16 @@ function parseRoster(doc: Document, sport: Sport, headCoachName?: string): { pla
       
       const name = nameEl?.textContent?.trim();
       if (name) {
-        players.push({
-          id: generateId(),
-          name,
-          jerseyNumber: numberEl?.textContent?.trim() || undefined,
-          position: positionEl?.textContent?.trim() || undefined,
-          sports: [sport],
-        });
+        const alreadyAdded = players.some((p) => p.name.toLowerCase() === name.toLowerCase());
+        if (!alreadyAdded) {
+          players.push({
+            id: generateId(),
+            name,
+            jerseyNumber: numberEl?.textContent?.trim() || undefined,
+            position: positionEl?.textContent?.trim() || undefined,
+            sports: [sport],
+          });
+        }
       }
     });
     
@@ -161,8 +230,60 @@ function parseRoster(doc: Document, sport: Sport, headCoachName?: string): { pla
       }
     });
   }
+
+  // Directory-style cards (Blackbaud): <img class="bb-avatar-image" src="..."> and <h1 class="bb-card-title">Name '27</h1>
+  const directoryCards = doc.querySelectorAll('.directory-card, .bb-card.directory-card');
+  directoryCards.forEach((card) => {
+    const titleEl = card.querySelector('h1.bb-card-title');
+    const imgEl = card.querySelector('img.bb-avatar-image');
+    const rawTitle = titleEl?.textContent?.trim();
+    const src = imgEl?.getAttribute('src')?.trim();
+    if (!rawTitle || !src) return;
+
+    const nameOnly = rawTitle.replace(/\s*'\d+\s*$/, '').trim();
+    if (!nameOnly) return;
+
+    const photo = normalizeImageUrl(src);
+
+    const existing = players.find((p) => p.name.toLowerCase() === nameOnly.toLowerCase());
+    if (existing) {
+      if (!existing.photo) existing.photo = photo;
+      return;
+    }
+  });
   
   return { players, coaches };
+}
+
+function parseTeamStats(doc: Document): ImportedTeamStats | undefined {
+  const statsRoot = doc.querySelector('.athleticteamstatistics, .team-stats, [class*="teamstat"], [class*="statistics"]');
+  if (!statsRoot) return undefined;
+
+  const parseBlock = (selector: string): WinLossStats | undefined => {
+    const block = statsRoot.querySelector(selector);
+    if (!block) return undefined;
+
+    const row = block.querySelector('tbody tr');
+    if (!row) return undefined;
+
+    const cells = Array.from(row.querySelectorAll('td')).map((td) => td.textContent?.trim() || '');
+    if (cells.length < 4) return undefined;
+
+    const wins = Number(cells[0]);
+    const losses = Number(cells[1]);
+    const ties = Number(cells[2]);
+    const pct = Number(cells[3]);
+    if ([wins, losses, ties, pct].some((n) => Number.isNaN(n))) return undefined;
+
+    return { wins, losses, ties, pct };
+  };
+
+  const overall = parseBlock('.winloss-overall');
+  const league = parseBlock('.winloss-league');
+  const nonLeague = parseBlock('.winloss-nonleague');
+
+  if (!overall && !league && !nonLeague) return undefined;
+  return { overall, league, nonLeague };
 }
 
 function parseDate(dateStr: string): Date | null {

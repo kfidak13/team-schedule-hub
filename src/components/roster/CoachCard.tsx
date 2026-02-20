@@ -4,22 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Mail, Phone, Trash2, Edit } from 'lucide-react';
+import silhouette from '@/assets/avatar-silhouette.svg';
 
 interface CoachCardProps {
   coach: Coach;
   onEdit?: (coach: Coach) => void;
   onDelete?: (id: string) => void;
 }
-
-const sportEmojis: Record<string, string> = {
-  tennis: '🎾',
-  basketball: '🏀',
-  soccer: '⚽',
-  volleyball: '🏐',
-  baseball: '⚾',
-  football: '🏈',
-  other: '🏆',
-};
 
 export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
   const initials = coach.name
@@ -34,7 +25,7 @@ export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           <Avatar className="h-12 w-12">
-            <AvatarImage src={coach.photo} alt={coach.name} />
+            <AvatarImage src={coach.photo || silhouette} alt={coach.name} />
             <AvatarFallback className="bg-secondary text-secondary-foreground">
               {initials}
             </AvatarFallback>
@@ -49,12 +40,12 @@ export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
                 {coach.role}
               </Badge>
             </div>
-            
-            <div className="flex flex-wrap gap-1">
+
+            <div className="flex flex-wrap gap-2 pt-1">
               {coach.sports.map((sport) => (
-                <span key={sport} className="text-sm" title={sport}>
-                  {sportEmojis[sport]}
-                </span>
+                <Badge key={sport} variant="secondary" className="font-normal capitalize">
+                  {sport}
+                </Badge>
               ))}
             </div>
             
