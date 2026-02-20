@@ -72,7 +72,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <Trophy className="h-5 w-5 text-primary" />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight">Team Hub</div>
+              <div className="text-sm font-semibold tracking-tight">Webb Sports Hub</div>
               <div className="text-xs text-muted-foreground">Schedule Manager</div>
             </div>
           </div>
