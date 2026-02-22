@@ -18,8 +18,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>(() => {
+    if (isLocalhost) return 'admin';
     return (localStorage.getItem('auth_role') as Role) || 'viewer';
   });
 

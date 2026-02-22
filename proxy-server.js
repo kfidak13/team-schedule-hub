@@ -5,6 +5,20 @@ const app = express();
 const PORT = 3001;
 
 const UPSTREAM_TIMEOUT_MS = 12000;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+const cache = new Map(); // url -> { body, contentType, ts }
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { cache.delete(key); return null; }
+  return entry;
+}
+
+function setCached(key, body, contentType) {
+  cache.set(key, { body, contentType, ts: Date.now() });
+}
 
 // Enable CORS for all origins
 app.use(cors());
@@ -26,8 +40,16 @@ app.get('/api/proxy', async (req, res) => {
   
   try {
     const decodedUrl = decodeURIComponent(String(url));
-    console.log(`Proxying: ${decodedUrl}`);
 
+    const hit = getCached(decodedUrl);
+    if (hit) {
+      console.log(`Cache hit: ${decodedUrl}`);
+      if (hit.contentType) res.set('Content-Type', hit.contentType);
+      res.set('Cache-Control', 'public, max-age=300');
+      return res.send(hit.body);
+    }
+
+    console.log(`Proxying: ${decodedUrl}`);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
     
@@ -37,9 +59,6 @@ app.get('/api/proxy', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Connection': 'close',
       },
     }).finally(() => clearTimeout(timeoutId));
     
@@ -47,13 +66,12 @@ app.get('/api/proxy', async (req, res) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    res.set('Cache-Control', 'no-store');
     const contentType = response.headers.get('content-type');
-    if (contentType) {
-      res.set('Content-Type', contentType);
-    }
-    
     const data = await response.text();
+    setCached(decodedUrl, data, contentType);
+
+    if (contentType) res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=300');
     res.send(data);
     
   } catch (error) {
@@ -79,8 +97,15 @@ app.get('/api/webb', async (req, res) => {
   }
   
   try {
-    console.log(`Fetching Webb School: ${url}`);
+    const hit = getCached(url);
+    if (hit) {
+      console.log(`Cache hit (Webb): ${url}`);
+      res.set('Content-Type', 'text/html');
+      res.set('Cache-Control', 'public, max-age=300');
+      return res.send(hit.body);
+    }
 
+    console.log(`Fetching Webb School: ${url}`);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
     
@@ -90,9 +115,6 @@ app.get('/api/webb', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Connection': 'close',
       }
     }).finally(() => clearTimeout(timeoutId));
     
@@ -100,9 +122,11 @@ app.get('/api/webb', async (req, res) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    res.set('Cache-Control', 'no-store');
     const data = await response.text();
+    setCached(url, data, 'text/html');
+
     res.set('Content-Type', 'text/html');
+    res.set('Cache-Control', 'public, max-age=300');
     res.send(data);
     
   } catch (error) {
