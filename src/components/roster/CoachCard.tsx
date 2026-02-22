@@ -24,9 +24,9 @@ export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
     <Card className="group transition-shadow hover:shadow-md">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-16 w-16 ring-1 ring-border">
             <AvatarImage src={coach.photo || silhouette} alt={coach.name} />
-            <AvatarFallback className="bg-secondary text-secondary-foreground">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -35,7 +35,11 @@ export function CoachCard({ coach, onEdit, onDelete }: CoachCardProps) {
             <div className="flex items-center gap-2">
               <h3 className="font-semibold">{coach.name}</h3>
               <Badge
-                variant={coach.role === 'Head Coach' ? 'default' : 'secondary'}
+                variant="outline"
+                className={coach.role === 'Head Coach'
+                  ? 'border-gold/60 bg-gold/10 text-gold font-semibold'
+                  : 'border-muted-foreground/30 text-muted-foreground font-normal'
+                }
               >
                 {coach.role}
               </Badge>

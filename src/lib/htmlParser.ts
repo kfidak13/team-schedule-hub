@@ -84,49 +84,56 @@ function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | 
   const score = scoreEl?.textContent?.trim();
   
   let result = undefined;
-  const parseResultFromText = (text?: string) => {
+
+  const parseResultFromText = (text?: string): { won: boolean; score: string } | undefined => {
     if (!text) return undefined;
     const normalized = text.replace(/\s+/g, ' ').trim();
-
-    // Examples: "W 3-2", "L, 1-2", "Win 10-4", "Loss 2-3"
+    // Matches: "W 3-2", "L, 1-2", "Win 10-4", "Loss 2-3"
     const match = normalized.match(/\b(w|l|win|loss)\b\s*[:\-,]?\s*([0-9]+\s*[-–]\s*[0-9]+)/i);
     if (!match) return undefined;
-
     const wl = match[1].toLowerCase();
     const won = wl === 'w' || wl === 'win';
-    const score = match[2].replace(/\s*/g, '').replace('–', '-');
-    return { won, score };
+    const sc = match[2].replace(/\s+/g, '').replace('–', '-');
+    return { won, score: sc };
   };
 
-  // Primary: many school schedule pages encode Win/Loss in the element class
-  if (winlossEl && score) {
-    const isWinClass = winlossEl.classList.contains('Win');
-    const isLossClass = winlossEl.classList.contains('Loss');
-    if (isWinClass || isLossClass) {
-      result = {
-        won: isWinClass,
-        score,
-      };
-    }
-  }
+  if (winlossEl) {
+    const wlTextLower = (winloss || '').toLowerCase();
 
-  // Prefer separated W/L and score when present
-  if (!result && winloss && score) {
-    const normalizedWL = winloss.replace(/\s+/g, ' ').trim().toLowerCase();
-    const isWin = /^w\b/.test(normalizedWL) || normalizedWL.startsWith('win');
-    const isLoss = /^l\b/.test(normalizedWL) || normalizedWL.startsWith('loss');
+    // Check class tokens (case-insensitive) AND text content — whichever fires first wins
+    const isWin =
+      winlossEl.classList.contains('Win') ||
+      winlossEl.classList.contains('win') ||
+      wlTextLower === 'win' ||
+      wlTextLower === 'w';
+
+    const isLoss =
+      winlossEl.classList.contains('Loss') ||
+      winlossEl.classList.contains('loss') ||
+      wlTextLower === 'loss' ||
+      wlTextLower === 'l';
 
     if (isWin || isLoss) {
-      result = {
-        won: isWin,
-        score,
-      };
+      const determined = isWin && !isLoss; // isLoss takes priority in ambiguous cases
+      if (score) {
+        // Normal Webb/Blackbaud format: separate winloss + score spans
+        result = { won: determined, score };
+      } else {
+        // Score may be embedded in the winloss text, e.g. "W 3-2"
+        const fromText = parseResultFromText(winloss);
+        result = fromText ? { won: determined, score: fromText.score } : undefined;
+      }
     }
   }
 
-  // Fallback: sometimes result+score are combined in one element
-  if (!result) {
-    result = parseResultFromText(winloss) || parseResultFromText(gameEl.textContent || undefined);
+  // Fallback: combined element like "W 3-2" or "Win 28-27" somewhere in the game row
+  if (!result && winloss) {
+    result = parseResultFromText(winloss);
+  }
+
+  // Last-resort: scan full game text only when no winloss element was present at all
+  if (!result && !winlossEl) {
+    result = parseResultFromText(gameEl.textContent || undefined);
   }
   
   return {

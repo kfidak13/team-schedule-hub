@@ -1,9 +1,10 @@
 import { useTeam } from '@/context/TeamContext';
+import { useAuth } from '@/context/AuthContext';
+import { programLabel } from '@/lib/programUtils';
 import { PlayerCard } from '@/components/roster/PlayerCard';
 import { CoachCard } from '@/components/roster/CoachCard';
 import { AddPersonDialog } from '@/components/roster/AddPersonDialog';
 import { RosterImporter } from '@/components/roster/RosterImporter';
-import { SportSelector } from '@/components/dashboard/SportSelector';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function Roster() {
-  const { players, coaches, currentSport, deletePlayer, deleteCoach } = useTeam();
+  const { players, coaches, currentSport, currentProgram, deletePlayer, deleteCoach } = useTeam();
+  const { isAdmin } = useAuth();
   const location = useLocation();
 
   const activeView = location.pathname.includes('/roster/coaches') ? 'coaches' : 'players';
@@ -44,8 +46,10 @@ export default function Roster() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Roster</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {currentProgram ? programLabel(currentProgram) : 'Roster'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Manage your team's players and coaches
           </p>
         </div>
@@ -74,13 +78,11 @@ export default function Roster() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <RosterImporter />
-          <AddPersonDialog type="player" />
-          <AddPersonDialog type="coach" />
+          {isAdmin && <RosterImporter />}
+          {isAdmin && <AddPersonDialog type="player" />}
+          {isAdmin && <AddPersonDialog type="coach" />}
         </div>
       </div>
-      
-      <SportSelector />
       
       {activeView === 'players' ? (
         <div className="space-y-3">

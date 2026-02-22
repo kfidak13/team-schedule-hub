@@ -36,9 +36,9 @@ export function PlayerCard({ player, onEdit, onDelete }: PlayerCardProps) {
     <Card className="group transition-shadow hover:shadow-md">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-16 w-16 ring-1 ring-border">
             <AvatarImage src={player.photo || silhouette} alt={player.name} />
-            <AvatarFallback className="bg-primary/10 text-primary">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -47,10 +47,12 @@ export function PlayerCard({ player, onEdit, onDelete }: PlayerCardProps) {
             <div className="flex items-center gap-2">
               <h3 className="font-semibold">{player.name}</h3>
               {player.jerseyNumber && (
-                <Badge variant="outline">#{player.jerseyNumber}</Badge>
+                <Badge variant="outline" className="border-gold/60 bg-gold/10 text-gold font-semibold">
+                  #{player.jerseyNumber}
+                </Badge>
               )}
               {isManager && (
-                <Badge variant="secondary" className="font-normal">
+                <Badge variant="outline" className="border-muted-foreground/40 font-normal text-muted-foreground">
                   Manager
                 </Badge>
               )}

@@ -1,160 +1,154 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ElementType } from 'react';
 import { useTeam } from '@/context/TeamContext';
+import { useAuth } from '@/context/AuthContext';
+import { getSportGroups } from '@/lib/programUtils';
+import { levelLabel } from '@/lib/programUtils';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ArrowRight, Trophy, Volleyball, CircleDot, Dumbbell, CalendarDays } from 'lucide-react';
-import type { Gender, Level, Program, Sport } from '@/types/team';
+  CircleDot, Trophy, Volleyball, Dumbbell, Waves, Wind,
+  PersonStanding, Zap, Target, ChevronRight, X,
+} from 'lucide-react';
+import type { Program, Sport } from '@/types/team';
 
 const sportIcons: Partial<Record<Sport, ElementType>> = {
-  soccer: CircleDot,
-  baseball: Trophy,
-  tennis: CircleDot,
-  football: CalendarDays,
-  badminton: CircleDot,
-  swim: Trophy,
-  cross_country: Trophy,
-  volleyball: Volleyball,
-  water_polo: Trophy,
-  golf: Trophy,
-  wrestling: Dumbbell,
-  swim_dive: Trophy,
-  basketball: Dumbbell,
-  other: Trophy,
+  soccer:        CircleDot,
+  baseball:      Trophy,
+  tennis:        Target,
+  football:      Zap,
+  badminton:     Wind,
+  swim:          Waves,
+  cross_country: PersonStanding,
+  volleyball:    Volleyball,
+  water_polo:    Waves,
+  golf:          Target,
+  wrestling:     Dumbbell,
+  swim_dive:     Waves,
+  basketball:    CircleDot,
 };
 
-const sportDisplayNames: Partial<Record<Sport, string>> = {
-  soccer: 'Soccer',
-  baseball: 'Baseball',
-  tennis: 'Tennis',
-  football: 'Football',
-  badminton: 'Badminton',
-  swim: 'Swim',
-  cross_country: 'Cross Country',
-  volleyball: 'Volleyball',
-  water_polo: 'Water Polo',
-  golf: 'Golf',
-  wrestling: 'Wrestling',
-  swim_dive: 'Swim and Dive',
-  basketball: 'Basketball',
-};
-
-type ProgramOption = Program & { label: string };
-
-function buildProgramOptions(): ProgramOption[] {
-  const sports: Sport[] = [
-    'soccer',
-    'baseball',
-    'tennis',
-    'football',
-    'badminton',
-    'swim',
-    'cross_country',
-    'volleyball',
-    'water_polo',
-    'golf',
-    'wrestling',
-    'swim_dive',
-    'basketball',
-  ];
-
-  const noGirls = new Set<Sport>(['football']);
-  const noJV = new Set<Sport>(['baseball', 'football', 'swim', 'swim_dive']);
-  const froshOnly = new Set<Sport>(['volleyball', 'basketball']);
-  const noJVOrFrosh = new Set<Sport>(['wrestling', 'swim_dive']);
-
-  const res: ProgramOption[] = [];
-
-  for (const sport of sports) {
-    const genders: Gender[] = noGirls.has(sport) ? ['boys'] : ['boys', 'girls'];
-
-    let levels: Level[] = ['varsity'];
-    if (!noJVOrFrosh.has(sport) && !noJV.has(sport)) {
-      levels = [...levels, 'jv'];
-    }
-    if (!noJVOrFrosh.has(sport) && froshOnly.has(sport)) {
-      levels = [...levels, 'frosh'];
-    }
-
-    for (const gender of genders) {
-      for (const level of levels) {
-        const baseName = sportDisplayNames[sport] || 'Sport';
-        const genderLabel = gender === 'girls' ? 'Girls' : 'Boys';
-        const levelLabel = level === 'varsity' ? 'Varsity' : level.toUpperCase();
-        res.push({
-          sport,
-          gender,
-          level,
-          label: `${genderLabel} ${baseName} (${levelLabel})`,
-        });
-      }
-    }
-  }
-
-  return res;
-}
+const sportGroups = getSportGroups();
 
 export default function GetStarted() {
   const navigate = useNavigate();
   const { setCurrentProgram } = useTeam();
-  const [selected, setSelected] = useState<string>('');
+  const { setPrimaryProgram } = useAuth();
+  const [expandedSport, setExpandedSport] = useState<Sport | null>(null);
 
-  const programOptions = useMemo(() => buildProgramOptions(), []);
-
-  const onContinue = () => {
-    const option = programOptions.find((p) => p.label === selected);
-    if (!option) return;
-    const program: Program = { sport: option.sport, gender: option.gender, level: option.level };
+  function selectProgram(program: Program) {
     setCurrentProgram(program);
-    navigate('/schedule');
-  };
+    setPrimaryProgram(program);
+    navigate('/dashboard');
+  }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-border">
-            <Trophy className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Choose your program</h1>
-            <p className="text-sm text-muted-foreground">Pick a sport, team, and level to view the schedule.</p>
-          </div>
+    <div className="mx-auto max-w-4xl space-y-8 py-4">
+      {/* Header */}
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 ring-2 ring-gold/40 p-2">
+          <img src="/images/webb-logo.png" alt="Webb" className="h-full w-full object-contain" />
         </div>
-
-        <div className="space-y-3">
-          <Select value={selected} onValueChange={(v) => setSelected(v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a program" />
-            </SelectTrigger>
-            <SelectContent>
-              {programOptions.map((p) => {
-                const Icon = sportIcons[p.sport] || Trophy;
-                return (
-                  <SelectItem key={p.label} value={p.label}>
-                    <span className="flex items-center gap-2">
-                      <Icon className="h-4 w-4" />
-                      {p.label}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          <Button className="w-full justify-between" onClick={onContinue} disabled={!selected}>
-            Continue
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Choose Your Sport</h1>
+        <p className="mt-2 text-muted-foreground">Select a program to view its schedule, roster, and stats.</p>
       </div>
+
+      {/* Sport card grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {sportGroups.map((group) => {
+          const Icon = sportIcons[group.sport] || Trophy;
+          const isExpanded = expandedSport === group.sport;
+
+          return (
+            <button
+              key={group.sport}
+              onClick={() => setExpandedSport(isExpanded ? null : group.sport)}
+              className={cn(
+                'flex flex-col items-center gap-3 rounded-xl border p-5 text-center transition-all duration-200',
+                isExpanded
+                  ? 'border-gold/60 bg-gold/10 text-gold shadow-md shadow-gold/10'
+                  : 'border-border bg-card hover:border-gold/40 hover:bg-gold/5 hover:shadow-sm'
+              )}
+            >
+              <div className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-xl',
+                isExpanded ? 'bg-gold/20' : 'bg-muted'
+              )}>
+                <Icon className={cn('h-6 w-6', isExpanded ? 'text-gold' : 'text-muted-foreground')} />
+              </div>
+              <span className="text-sm font-semibold leading-tight">{group.name}</span>
+              <ChevronRight className={cn(
+                'h-3.5 w-3.5 transition-transform duration-200',
+                isExpanded ? 'rotate-90 text-gold' : 'text-muted-foreground'
+              )} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Level picker panel — full width, shown below the grid */}
+      {expandedSport && (() => {
+        const group = sportGroups.find((g) => g.sport === expandedSport);
+        if (!group) return null;
+        return (
+          <div className="rounded-xl border border-gold/30 bg-card p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">{group.name} — Select Level</h3>
+              <button
+                onClick={() => setExpandedSport(null)}
+                className="rounded-md p-1.5 hover:bg-accent"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {group.hasMultipleGenders ? (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {(['boys', 'girls'] as const).map((gender) => {
+                  const genderPrograms = group.programs.filter((p) => p.gender === gender);
+                  if (!genderPrograms.length) return null;
+                  return (
+                    <div key={gender}>
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {gender === 'boys' ? 'Boys' : 'Girls'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {genderPrograms.map((p) => (
+                          <Button
+                            key={p.label}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => selectProgram(p)}
+                            className="border-gold/30 hover:border-gold/70 hover:bg-gold/10 hover:text-gold"
+                          >
+                            {levelLabel(p.level)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {group.programs.map((p) => (
+                  <Button
+                    key={p.label}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => selectProgram(p)}
+                    className="border-gold/30 hover:border-gold/70 hover:bg-gold/10 hover:text-gold"
+                  >
+                    {levelLabel(p.level)}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

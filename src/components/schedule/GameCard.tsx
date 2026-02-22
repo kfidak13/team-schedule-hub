@@ -14,14 +14,18 @@ interface GameCardProps {
 
 export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
   return (
-    <Card className="group transition-shadow hover:shadow-md">
+    <Card className={cn(
+      'group transition-shadow hover:shadow-md overflow-hidden',
+      game.result?.won === true && 'border-l-[3px] border-l-gold',
+      game.result?.won === false && 'border-l-[3px] border-l-destructive',
+    )}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 space-y-2">
             {/* Header with opponent and badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary ring-1 ring-border">
-                <Trophy className="h-4 w-4" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 ring-1 ring-gold/40">
+                <Trophy className="h-4 w-4 text-gold" />
               </span>
               <h3 className="font-semibold">
                 {game.title || (game.opponent ? `vs. ${game.opponent}` : 'Game')}
@@ -66,7 +70,12 @@ export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
             {game.result && (
               <div className="mt-2">
                 <Badge
-                  variant={game.result.won ? "default" : "destructive"}
+                  variant="outline"
+                  className={cn(
+                    game.result.won
+                      ? 'border-gold/70 bg-gold/10 text-gold font-semibold'
+                      : 'border-destructive/50 bg-destructive/10 text-destructive'
+                  )}
                 >
                   {game.result.won ? 'W' : 'L'} {game.result.score}
                 </Badge>
