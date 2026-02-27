@@ -30,6 +30,10 @@ export function sportDisplayName(sport: Sport): string {
   return SPORT_NAMES[sport] || sport;
 }
 
+export function programKey(p: Program): string {
+  return `${p.sport}_${p.gender}_${p.level}`;
+}
+
 export function programLabel(program: Program): string {
   const gender = program.gender === 'girls' ? 'Girls' : 'Boys';
   const sport = sportDisplayName(program.sport);

@@ -6,7 +6,7 @@ import { format, isAfter, isBefore, addDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export function UpcomingGames() {
-  const { games, currentSport } = useTeam();
+  const { games, currentProgram } = useTeam();
   
   const today = startOfDay(new Date());
   const nextWeek = addDays(today, 7);
@@ -16,8 +16,8 @@ export function UpcomingGames() {
       const gameDate = startOfDay(new Date(game.date));
       const isUpcoming = isAfter(gameDate, today) || gameDate.getTime() === today.getTime();
       const isWithinWeek = isBefore(gameDate, nextWeek) || gameDate.getTime() === nextWeek.getTime();
-      const matchesSport = currentSport === 'all' || game.sport === currentSport;
-      return isUpcoming && isWithinWeek && matchesSport;
+      const matchesProgram = !currentProgram || (game.sport === currentProgram.sport && game.gender === currentProgram.gender && game.level === currentProgram.level);
+      return isUpcoming && isWithinWeek && matchesProgram;
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5);
@@ -46,11 +46,11 @@ export function UpcomingGames() {
           Upcoming Games
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 stagger-list">
         {upcomingGames.map((game) => (
           <div
             key={game.id}
-            className="flex flex-col gap-2 rounded-lg border bg-accent/30 p-3"
+            className="flex flex-col gap-2 rounded-lg border bg-accent/30 p-3 hover-lift"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">

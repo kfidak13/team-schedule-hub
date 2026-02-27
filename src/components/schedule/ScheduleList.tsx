@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
 import { GameCard } from './GameCard';
+import { EditGameDialog } from './EditGameDialog';
+import { Game } from '@/types/team';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,15 +22,16 @@ type VenueFilter = Venue | 'all';
 type LeagueFilter = 'all' | 'league' | 'non-league';
 
 export function ScheduleList() {
-  const { games, currentSport, deleteGame } = useTeam();
+  const { games, currentProgram, deleteGame } = useTeam();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [venueFilter, setVenueFilter] = useState<VenueFilter>('all');
   const [leagueFilter, setLeagueFilter] = useState<LeagueFilter>('all');
+  const [editingGame, setEditingGame] = useState<Game | null>(null);
   
   // Filter games
   let filteredGames = games.filter(game => {
-    if (currentSport !== 'all' && game.sport !== currentSport) return false;
+    if (currentProgram && !(game.sport === currentProgram.sport && game.gender === currentProgram.gender && game.level === currentProgram.level)) return false;
     if (venueFilter !== 'all' && game.venue !== venueFilter) return false;
     if (leagueFilter === 'league' && !game.isLeague) return false;
     if (leagueFilter === 'non-league' && game.isLeague) return false;
@@ -50,6 +53,10 @@ export function ScheduleList() {
   const handleDelete = (id: string) => {
     deleteGame(id);
     toast.success('Game deleted');
+  };
+
+  const handleEdit = (game: Game) => {
+    setEditingGame(game);
   };
   
   // Group by month for month view
@@ -129,17 +136,18 @@ export function ScheduleList() {
           </p>
         </div>
       ) : viewMode === 'list' ? (
-        <div className="space-y-3">
+        <div className="space-y-3 stagger-list">
           {filteredGames.map((game) => (
             <GameCard
               key={game.id}
               game={game}
+              onEdit={handleEdit}
               onDelete={handleDelete}
             />
           ))}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 stagger-list">
           {Object.entries(gamesByMonth).map(([monthKey, monthGames]) => (
             <div key={monthKey}>
               <h3 className="mb-3 text-lg font-semibold">
@@ -150,6 +158,7 @@ export function ScheduleList() {
                   <GameCard
                     key={game.id}
                     game={game}
+                    onEdit={handleEdit}
                     onDelete={handleDelete}
                   />
                 ))}
@@ -158,6 +167,11 @@ export function ScheduleList() {
           ))}
         </div>
       )}
+      <EditGameDialog
+        game={editingGame}
+        open={editingGame !== null}
+        onClose={() => setEditingGame(null)}
+      />
     </div>
   );
 }

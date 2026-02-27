@@ -15,7 +15,7 @@ interface TeamContextType {
   games: Game[];
   addGame: (game: Omit<Game, 'id'>) => void;
   addGames: (games: Omit<Game, 'id'>[]) => void;
-  replaceGamesForSport: (sport: Sport, games: Game[]) => void;
+  replaceGamesForProgram: (program: Program, games: Game[]) => void;
   updateGame: (id: string, game: Partial<Game>) => void;
   deleteGame: (id: string) => void;
   
@@ -23,6 +23,7 @@ interface TeamContextType {
   players: Player[];
   addPlayer: (player: Omit<Player, 'id'>) => void;
   addPlayers: (players: Player[]) => void;
+  replacePlayersForProgram: (programKey: string, players: Player[]) => void;
   updatePlayer: (id: string, player: Partial<Player>) => void;
   deletePlayer: (id: string) => void;
   
@@ -30,6 +31,7 @@ interface TeamContextType {
   coaches: Coach[];
   addCoach: (coach: Omit<Coach, 'id'>) => void;
   addCoaches: (coaches: Coach[]) => void;
+  replaceCoachesForProgram: (programKey: string, coaches: Coach[]) => void;
   updateCoach: (id: string, coach: Partial<Coach>) => void;
   deleteCoach: (id: string) => void;
   
@@ -37,12 +39,12 @@ interface TeamContextType {
   teamInfos: TeamInfo[];
   addTeamInfo: (info: TeamInfo) => void;
 
-  // Imported Team Stats
-  importedStats: Partial<Record<Sport, ImportedTeamStats>>;
-  addImportedStats: (sport: Sport, stats: ImportedTeamStats) => void;
+  // Imported Team Stats — keyed by programKey (e.g. "soccer_boys_varsity")
+  importedStats: Record<string, ImportedTeamStats>;
+  addImportedStats: (key: string, stats: ImportedTeamStats) => void;
   
   // Stats
-  getRecord: (sport?: Sport) => { wins: number; losses: number };
+  getRecord: (program?: Program) => { wins: number; losses: number };
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -54,7 +56,7 @@ interface StoredData {
   players: Player[];
   coaches: Coach[];
   teamInfos: TeamInfo[];
-  importedStats: Partial<Record<Sport, ImportedTeamStats>>;
+  importedStats: Record<string, ImportedTeamStats>;
   currentProgram?: Program;
 }
 
@@ -94,7 +96,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<Player[]>(initialData.players);
   const [coaches, setCoaches] = useState<Coach[]>(initialData.coaches);
   const [teamInfos, setTeamInfos] = useState<TeamInfo[]>(initialData.teamInfos);
-  const [importedStats, setImportedStats] = useState<Partial<Record<Sport, ImportedTeamStats>>>(initialData.importedStats || {});
+  const [importedStats, setImportedStats] = useState<Record<string, ImportedTeamStats>>(initialData.importedStats || {});
   const [currentProgram, setCurrentProgramState] = useState<Program | undefined>(initialData.currentProgram);
   
   // Mark as loaded after first render
@@ -122,9 +124,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setGames(prev => [...prev, ...gamesWithIds]);
   };
 
-  const replaceGamesForSport = (sport: Sport, newGames: Game[]) => {
+  const replaceGamesForProgram = (program: Program, newGames: Game[]) => {
     setGames(prev => {
-      const kept = prev.filter(g => g.sport !== sport);
+      const kept = prev.filter(g => !(g.sport === program.sport && g.gender === program.gender && g.level === program.level));
       return [...kept, ...newGames];
     });
   };
@@ -143,11 +145,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const addPlayers = (newPlayers: Player[]) => {
     setPlayers(prev => {
-      // Avoid duplicates by name
-      const existingNames = new Set(prev.map(p => p.name.toLowerCase()));
-      const uniqueNew = newPlayers.filter(p => !existingNames.has(p.name.toLowerCase()));
+      // Avoid duplicates by name within the same programKey
+      const uniqueNew = newPlayers.filter(np => {
+        return !prev.some(p => p.name.toLowerCase() === np.name.toLowerCase() && p.programKey === np.programKey);
+      });
       return [...prev, ...uniqueNew];
     });
+  };
+
+  const replacePlayersForProgram = (pKey: string, newPlayers: Player[]) => {
+    setPlayers(prev => [...prev.filter(p => p.programKey !== pKey), ...newPlayers]);
   };
   
   const updatePlayer = (id: string, player: Partial<Player>) => {
@@ -164,11 +171,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const addCoaches = (newCoaches: Coach[]) => {
     setCoaches(prev => {
-      // Avoid duplicates by name
-      const existingNames = new Set(prev.map(c => c.name.toLowerCase()));
-      const uniqueNew = newCoaches.filter(c => !existingNames.has(c.name.toLowerCase()));
+      // Avoid duplicates by name within the same programKey
+      const uniqueNew = newCoaches.filter(nc => {
+        return !prev.some(c => c.name.toLowerCase() === nc.name.toLowerCase() && c.programKey === nc.programKey);
+      });
       return [...prev, ...uniqueNew];
     });
+  };
+
+  const replaceCoachesForProgram = (pKey: string, newCoaches: Coach[]) => {
+    setCoaches(prev => [...prev.filter(c => c.programKey !== pKey), ...newCoaches]);
   };
   
   const updateCoach = (id: string, coach: Partial<Coach>) => {
@@ -187,15 +199,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addImportedStats = (sport: Sport, stats: ImportedTeamStats) => {
-    setImportedStats(prev => ({ ...prev, [sport]: stats }));
+  const addImportedStats = (key: string, stats: ImportedTeamStats) => {
+    setImportedStats(prev => ({ ...prev, [key]: stats }));
   };
   
-  const getRecord = (sport?: Sport) => {
-    const filteredGames = sport 
-      ? games.filter(g => g.sport === sport && g.result)
+  const getRecord = (program?: Program) => {
+    const filteredGames = program
+      ? games.filter(g => g.sport === program.sport && g.gender === program.gender && g.level === program.level && g.result)
       : games.filter(g => g.result);
-    
     return {
       wins: filteredGames.filter(g => g.result?.won).length,
       losses: filteredGames.filter(g => g.result && !g.result.won).length,
@@ -211,17 +222,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       games,
       addGame,
       addGames,
-      replaceGamesForSport,
+      replaceGamesForProgram,
       updateGame,
       deleteGame,
       players,
       addPlayer,
       addPlayers,
+      replacePlayersForProgram,
       updatePlayer,
       deletePlayer,
       coaches,
       addCoach,
       addCoaches,
+      replaceCoachesForProgram,
       updateCoach,
       deleteCoach,
       teamInfos,

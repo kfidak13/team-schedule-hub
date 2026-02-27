@@ -5,12 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import { programLabel } from '@/lib/programUtils';
 
 export default function Schedule() {
-  const { games, currentSport, currentProgram } = useTeam();
+  const { games, currentProgram } = useTeam();
   const { isAdmin } = useAuth();
 
-  const filteredGames = games.filter(
-    (g) => currentSport === 'all' || g.sport === currentSport
-  );
+  const filteredGames = currentProgram
+    ? games.filter(g => g.sport === currentProgram.sport && g.gender === currentProgram.gender && g.level === currentProgram.level)
+    : games;
   const wins = filteredGames.filter((g) => g.result?.won === true).length;
   const losses = filteredGames.filter((g) => g.result?.won === false).length;
   const hasRecord = wins > 0 || losses > 0;
@@ -19,7 +19,7 @@ export default function Schedule() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-white">
             {currentProgram ? programLabel(currentProgram) : 'Schedule'}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -27,9 +27,9 @@ export default function Schedule() {
           </p>
           {hasRecord && (
             <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-3xl font-bold text-gold">{wins}</span>
-              <span className="text-xl font-semibold text-muted-foreground">–</span>
-              <span className="text-3xl font-bold">{losses}</span>
+              <span className="text-3xl font-bold text-[#D4AF37]">{wins}</span>
+              <span className="text-xl font-semibold text-white/50">–</span>
+              <span className="text-3xl font-bold text-white">{losses}</span>
               <span className="text-sm text-muted-foreground pl-1">overall</span>
             </div>
           )}

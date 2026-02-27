@@ -1,8 +1,10 @@
 import { Game, Sport, TeamInfo, Venue, Player, Coach, ImportedTeamStats, WinLossStats } from '@/types/team';
 
+type PartialGame = Omit<Game, 'gender' | 'level'>;
+
 interface ParseResult {
   teamInfo: TeamInfo | null;
-  games: Game[];
+  games: PartialGame[];
   players: Player[];
   coaches: Coach[];
   importedStats?: ImportedTeamStats;
@@ -28,7 +30,7 @@ export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseR
   }
   
   // Extract games
-  const games: Game[] = [];
+  const games: PartialGame[] = [];
   const gameElements = doc.querySelectorAll('.game');
   
   gameElements.forEach((gameEl, index) => {
@@ -47,7 +49,7 @@ export function parseScheduleHtml(html: string, sport: Sport = 'tennis'): ParseR
   return { teamInfo, games, players, coaches, importedStats };
 }
 
-function parseGameElement(gameEl: Element, sport: Sport, index: number): Game | null {
+function parseGameElement(gameEl: Element, sport: Sport, index: number): PartialGame | null {
   // Get date
   const dateSpans = gameEl.querySelectorAll('.schedule-date');
   const dateText = dateSpans[0]?.textContent?.trim() || '';

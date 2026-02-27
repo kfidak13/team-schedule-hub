@@ -1,6 +1,6 @@
 import { useTeam } from '@/context/TeamContext';
 import { useAuth } from '@/context/AuthContext';
-import { programLabel } from '@/lib/programUtils';
+import { programLabel, programKey } from '@/lib/programUtils';
 import { PlayerCard } from '@/components/roster/PlayerCard';
 import { CoachCard } from '@/components/roster/CoachCard';
 import { AddPersonDialog } from '@/components/roster/AddPersonDialog';
@@ -17,20 +17,21 @@ import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function Roster() {
-  const { players, coaches, currentSport, currentProgram, deletePlayer, deleteCoach } = useTeam();
+  const { players, coaches, currentProgram, deletePlayer, deleteCoach } = useTeam();
   const { isAdmin } = useAuth();
   const location = useLocation();
 
   const activeView = location.pathname.includes('/roster/coaches') ? 'coaches' : 'players';
-  
-  // Filter by current sport
-  const filteredPlayers = currentSport === 'all'
-    ? players
-    : players.filter(p => p.sports.includes(currentSport));
-  
-  const filteredCoaches = currentSport === 'all'
-    ? coaches
-    : coaches.filter(c => c.sports.includes(currentSport));
+
+  const pKey = currentProgram ? programKey(currentProgram) : undefined;
+
+  const filteredPlayers = pKey
+    ? players.filter(p => p.programKey === pKey)
+    : players;
+
+  const filteredCoaches = pKey
+    ? coaches.filter(c => c.programKey === pKey)
+    : coaches;
   
   const handleDeletePlayer = (id: string) => {
     deletePlayer(id);
@@ -46,7 +47,7 @@ export default function Roster() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-white">
             {currentProgram ? programLabel(currentProgram) : 'Roster'}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -85,7 +86,7 @@ export default function Roster() {
       </div>
       
       {activeView === 'players' ? (
-        <div className="space-y-3">
+        <div className="space-y-3 stagger-list">
           {filteredPlayers.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-muted-foreground">
@@ -99,7 +100,7 @@ export default function Roster() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 stagger-list">
           {filteredCoaches.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-muted-foreground">

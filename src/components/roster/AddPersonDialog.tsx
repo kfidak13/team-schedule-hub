@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
-import { Sport } from '@/types/team';
+import { programKey, programLabel } from '@/lib/programUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,28 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 type PersonType = 'player' | 'coach';
-
-const sportOptions: { value: Sport; label: string }[] = [
-  { value: 'tennis', label: 'Tennis' },
-  { value: 'basketball', label: 'Basketball' },
-  { value: 'soccer', label: 'Soccer' },
-  { value: 'volleyball', label: 'Volleyball' },
-  { value: 'baseball', label: 'Baseball' },
-  { value: 'football', label: 'Football' },
-  { value: 'badminton', label: 'Badminton' },
-  { value: 'swim', label: 'Swim' },
-  { value: 'cross_country', label: 'Cross Country' },
-  { value: 'water_polo', label: 'Water Polo' },
-  { value: 'golf', label: 'Golf' },
-  { value: 'wrestling', label: 'Wrestling' },
-  { value: 'swim_dive', label: 'Swim and Dive' },
-  { value: 'other', label: 'Other' },
-];
 
 const coachRoles = ['Head Coach', 'Assistant Coach', 'Volunteer'] as const;
 
@@ -50,43 +32,43 @@ interface AddPersonDialogProps {
 
 export function AddPersonDialog({ type }: AddPersonDialogProps) {
   const [open, setOpen] = useState(false);
-  const { addPlayer, addCoach } = useTeam();
-  
+  const { currentProgram, addPlayer, addCoach } = useTeam();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedSports, setSelectedSports] = useState<Sport[]>([]);
-  
+
   // Player-specific
   const [jerseyNumber, setJerseyNumber] = useState('');
   const [position, setPosition] = useState('');
-  
+
   // Coach-specific
   const [role, setRole] = useState<typeof coachRoles[number]>('Head Coach');
-  
+
   const resetForm = () => {
     setName('');
     setEmail('');
     setPhone('');
-    setSelectedSports([]);
     setJerseyNumber('');
     setPosition('');
     setRole('Head Coach');
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast.error('Please enter a name');
       return;
     }
-    
-    if (selectedSports.length === 0) {
-      toast.error('Please select at least one sport');
+
+    if (!currentProgram) {
+      toast.error('No program selected. Choose a sport first.');
       return;
     }
-    
+
+    const pKey = programKey(currentProgram);
+
     if (type === 'player') {
       addPlayer({
         name: name.trim(),
@@ -94,7 +76,8 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
         phone: phone.trim() || undefined,
         jerseyNumber: jerseyNumber.trim() || undefined,
         position: position.trim() || undefined,
-        sports: selectedSports,
+        sports: [currentProgram.sport],
+        programKey: pKey,
       });
       toast.success('Player added!');
     } else {
@@ -103,23 +86,16 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         role,
-        sports: selectedSports,
+        sports: [currentProgram.sport],
+        programKey: pKey,
       });
       toast.success('Coach added!');
     }
-    
+
     resetForm();
     setOpen(false);
   };
-  
-  const toggleSport = (sport: Sport) => {
-    setSelectedSports(prev =>
-      prev.includes(sport)
-        ? prev.filter(s => s !== sport)
-        : [...prev, sport]
-    );
-  };
-  
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -132,10 +108,12 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
         <DialogHeader>
           <DialogTitle>Add {type === 'player' ? 'Player' : 'Coach'}</DialogTitle>
           <DialogDescription>
-            Add a new {type} to your team roster.
+            {currentProgram
+              ? `Adding to: ${programLabel(currentProgram)}`
+              : 'Select a program first from the sport switcher.'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
@@ -146,7 +124,7 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
               placeholder="John Smith"
             />
           </div>
-          
+
           {type === 'player' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -169,7 +147,7 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
               </div>
             </div>
           )}
-          
+
           {type === 'coach' && (
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
@@ -185,25 +163,7 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
               </Select>
             </div>
           )}
-          
-          <div className="space-y-2">
-            <Label>Sports *</Label>
-            <div className="flex flex-wrap gap-3">
-              {sportOptions.map((sport) => (
-                <label
-                  key={sport.value}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <Checkbox
-                    checked={selectedSports.includes(sport.value)}
-                    onCheckedChange={() => toggleSport(sport.value)}
-                  />
-                  {sport.label}
-                </label>
-              ))}
-            </div>
-          </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -214,7 +174,7 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
               placeholder="john@example.com"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="phone">Phone</Label>
             <Input
@@ -225,12 +185,12 @@ export function AddPersonDialog({ type }: AddPersonDialogProps) {
               placeholder="(555) 123-4567"
             />
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={!currentProgram}>
               Add {type === 'player' ? 'Player' : 'Coach'}
             </Button>
           </div>

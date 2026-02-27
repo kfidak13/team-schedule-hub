@@ -1,18 +1,23 @@
 import { useTeam } from '@/context/TeamContext';
+import { programKey } from '@/lib/programUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Calendar, Users, Clock } from 'lucide-react';
 import { differenceInDays, startOfDay, isAfter } from 'date-fns';
 
 export function QuickStats() {
-  const { games, players, coaches, currentSport, getRecord } = useTeam();
-  
-  const record = getRecord(currentSport === 'all' ? undefined : currentSport);
+  const { games, players, coaches, currentProgram, getRecord } = useTeam();
+
+  const pKey = currentProgram ? programKey(currentProgram) : undefined;
+  const filteredPlayers = pKey ? players.filter(p => p.programKey === pKey) : players;
+  const filteredCoaches = pKey ? coaches.filter(c => c.programKey === pKey) : coaches;
+
+  const record = getRecord(currentProgram ?? undefined);
   
   // Find next game
   const today = startOfDay(new Date());
-  const filteredGames = currentSport === 'all' 
-    ? games 
-    : games.filter(g => g.sport === currentSport);
+  const filteredGames = currentProgram
+    ? games.filter(g => g.sport === currentProgram.sport && g.gender === currentProgram.gender && g.level === currentProgram.level)
+    : games;
   
   const nextGame = filteredGames
     .filter(g => isAfter(new Date(g.date), today) || startOfDay(new Date(g.date)).getTime() === today.getTime())
@@ -49,16 +54,16 @@ export function QuickStats() {
     },
     {
       label: 'Team Size',
-      value: `${players.length} players, ${coaches.length} coaches`,
+      value: `${filteredPlayers.length} players, ${filteredCoaches.length} coaches`,
       icon: Users,
       color: 'text-purple-500',
     },
   ];
   
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-list">
       {stats.map((stat) => (
-        <Card key={stat.label}>
+        <Card key={stat.label} className="hover-lift">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {stat.label}

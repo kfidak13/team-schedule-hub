@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Webb Team Hub</string>
+    <string name="title_activity_main">Webb Team Hub</string>
+    <string name="package_name">com.webb.teamhub</string>
+    <string name="custom_url_scheme">com.webb.teamhub</string>
+</resources>
