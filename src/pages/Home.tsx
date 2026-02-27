@@ -31,7 +31,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative -mx-4 -mt-6 flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 text-center md:-mt-10">
+    <div className="relative -mx-6 -mt-8 flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center md:-mt-12">
 
       {/* Background image — full bleed, crossfade */}
       <div
@@ -44,8 +44,8 @@ export default function Home() {
         aria-hidden="true"
       />
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/55" aria-hidden="true" />
+      {/* Navy overlay */}
+      <div className="absolute inset-0 bg-[#002855]/70" aria-hidden="true" />
 
       {/* Bottom fade — blends into page background */}
       <div
@@ -55,9 +55,9 @@ export default function Home() {
       />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center pb-24">
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 ring-2 ring-gold/60 shadow-xl shadow-black/60 backdrop-blur-sm p-3">
-          <img src="/images/webb-logo.png" alt="Webb" className="h-full w-full object-contain drop-shadow-sm" />
+      <div className="relative z-10 flex flex-col items-center pb-24 stagger-list">
+        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-lg bg-white/10 ring-2 ring-[#D4AF37]/60 shadow-xl shadow-black/30 backdrop-blur-sm p-3">
+          <img src="/images/webb-logo.png" alt="Webb" className="h-full w-full object-contain brightness-0 invert drop-shadow-sm" loading="lazy" />
         </div>
 
         <h1 className="text-5xl font-bold tracking-tight text-white drop-shadow-lg sm:text-6xl md:text-7xl">
@@ -70,10 +70,10 @@ export default function Home() {
         <div className="mt-10">
           <Button
             size="lg"
-            className="gap-2 border border-gold/50 bg-primary px-10 py-6 text-base font-semibold shadow-lg shadow-black/40 hover:bg-primary/90 hover:border-gold/80"
+            className="gap-2 bg-[#D4AF37] text-[#002855] px-10 py-6 text-base font-bold uppercase tracking-wider shadow-lg hover:bg-[#C5A551] hover-lift rounded"
             onClick={() => navigate('/get-started')}
           >
-            Get started
+            Get Started
             <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
@@ -85,7 +85,7 @@ export default function Home() {
           <div
             key={i}
             className={`h-2 rounded-full transition-all duration-300 ${
-              i === current ? 'w-6 bg-gold' : 'w-2 bg-white/40'
+              i === current ? 'w-6 bg-[#D4AF37]' : 'w-2 bg-white/40'
             }`}
           />
         ))}

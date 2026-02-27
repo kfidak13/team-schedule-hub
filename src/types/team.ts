@@ -29,6 +29,8 @@ export type Venue = 'Home' | 'Away' | 'Neutral';
 export interface Game {
   id: string;
   sport: Sport;
+  gender: Gender;
+  level: Level;
   date: Date;
   time?: string;
   opponent?: string;
@@ -53,6 +55,7 @@ export interface Player {
   photo?: string;
   rosterRole?: 'player' | 'manager';
   sports: Sport[];
+  programKey?: string;
 }
 
 export interface WinLossStats {
@@ -76,6 +79,7 @@ export interface Coach {
   phone?: string;
   photo?: string;
   sports: Sport[];
+  programKey?: string;
 }
 
 export interface TeamInfo {

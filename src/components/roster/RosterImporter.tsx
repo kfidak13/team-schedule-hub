@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { parseScheduleHtml } from '@/lib/htmlParser';
 import { useTeam } from '@/context/TeamContext';
-import { Sport } from '@/types/team';
+import { programKey, programLabel } from '@/lib/programUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,39 +13,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Link, Loader2, Check, AlertCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
-
-const sportOptions: { value: Sport; label: string }[] = [
-  { value: 'tennis', label: 'Tennis' },
-  { value: 'basketball', label: 'Basketball' },
-  { value: 'soccer', label: 'Soccer' },
-  { value: 'volleyball', label: 'Volleyball' },
-  { value: 'baseball', label: 'Baseball' },
-  { value: 'football', label: 'Football' },
-  { value: 'badminton', label: 'Badminton' },
-  { value: 'swim', label: 'Swim' },
-  { value: 'cross_country', label: 'Cross Country' },
-  { value: 'water_polo', label: 'Water Polo' },
-  { value: 'golf', label: 'Golf' },
-  { value: 'wrestling', label: 'Wrestling' },
-  { value: 'swim_dive', label: 'Swim and Dive' },
-  { value: 'other', label: 'Other' },
-];
 
 const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 export function RosterImporter() {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
-  const [sport, setSport] = useState<Sport>('tennis');
   const [isLoading, setIsLoading] = useState(false);
   const [preview, setPreview] = useState<{
     players: number;
@@ -53,24 +28,24 @@ export function RosterImporter() {
     teamName?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { addPlayers, addCoaches, addTeamInfo } = useTeam();
+  const { currentProgram, replacePlayersForProgram, replaceCoachesForProgram, addTeamInfo } = useTeam();
 
   const fetchAndParse = async () => {
-    if (!url.trim()) {
-      setError('Please enter a URL');
-      return null;
-    }
+    if (!url.trim()) { setError('Please enter a URL'); return null; }
+    if (!currentProgram) { setError('No program selected. Choose a sport first.'); return null; }
 
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await fetch(CORS_PROXY + encodeURIComponent(url.trim()));
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
       const html = await response.text();
-      const result = parseScheduleHtml(html, sport);
+      const result = parseScheduleHtml(html, currentProgram.sport);
+      const pKey = programKey(currentProgram);
+      // Tag every player/coach with this program's key
+      result.players = result.players.map(p => ({ ...p, programKey: pKey, sports: [currentProgram.sport] }));
+      result.coaches = result.coaches.map(c => ({ ...c, programKey: pKey, sports: [currentProgram.sport] }));
       return result;
     } catch (err) {
       console.error('Fetch error:', err);
@@ -84,11 +59,7 @@ export function RosterImporter() {
   const handlePreview = async () => {
     const result = await fetchAndParse();
     if (result) {
-      setPreview({
-        players: result.players.length,
-        coaches: result.coaches.length,
-        teamName: result.teamInfo?.name,
-      });
+      setPreview({ players: result.players.length, coaches: result.coaches.length, teamName: result.teamInfo?.name });
     }
   };
 
@@ -101,9 +72,10 @@ export function RosterImporter() {
       return;
     }
 
+    const pKey = programKey(currentProgram!);
     if (result.teamInfo) addTeamInfo(result.teamInfo);
-    if (result.players.length > 0) addPlayers(result.players);
-    if (result.coaches.length > 0) addCoaches(result.coaches);
+    if (result.players.length > 0) replacePlayersForProgram(pKey, result.players);
+    if (result.coaches.length > 0) replaceCoachesForProgram(pKey, result.coaches);
 
     const parts = [];
     if (result.players.length > 0) parts.push(`${result.players.length} players`);
@@ -130,25 +102,13 @@ export function RosterImporter() {
             Import Roster
           </DialogTitle>
           <DialogDescription>
-            Enter the URL of your school's team roster page to import players and coaches.
+            {currentProgram
+              ? `Importing for: ${programLabel(currentProgram)}`
+              : 'Select a program first from the sport switcher.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="roster-sport">Sport</Label>
-            <Select value={sport} onValueChange={(v) => { setSport(v as Sport); setPreview(null); setError(null); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select sport" />
-              </SelectTrigger>
-              <SelectContent>
-                {sportOptions.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="roster-url">Roster Page URL</Label>
             <Input
@@ -175,22 +135,18 @@ export function RosterImporter() {
               <div className="flex items-center gap-2 text-primary">
                 <Check className="h-5 w-5" />
                 <div>
-                  <span className="font-medium">
-                    {preview.teamName && `${preview.teamName}: `}
-                  </span>
-                  <span>
-                    Found {preview.players} players, {preview.coaches} coaches
-                  </span>
+                  <span className="font-medium">{preview.teamName && `${preview.teamName}: `}</span>
+                  <span>Found {preview.players} players, {preview.coaches} coaches</span>
                 </div>
               </div>
             </div>
           )}
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handlePreview} disabled={!url.trim() || isLoading}>
+            <Button variant="outline" onClick={handlePreview} disabled={!url.trim() || isLoading || !currentProgram}>
               {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : 'Preview'}
             </Button>
-            <Button onClick={handleImport} disabled={!url.trim() || isLoading}>
+            <Button onClick={handleImport} disabled={!url.trim() || isLoading || !currentProgram}>
               {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : 'Import'}
             </Button>
           </div>

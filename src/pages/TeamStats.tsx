@@ -1,21 +1,24 @@
 import { useTeam } from '@/context/TeamContext';
 import { SportSelector } from '@/components/dashboard/SportSelector';
+import { programKey, programLabel } from '@/lib/programUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Target, TrendingUp, Calendar, Users, Percent } from 'lucide-react';
 
 export default function TeamStats() {
-  const { games, players, coaches, currentSport, getRecord, importedStats } = useTeam();
+  const { games, players, coaches, currentProgram, getRecord, importedStats } = useTeam();
 
-  const filteredGames = currentSport === 'all' 
-    ? games 
-    : games.filter(g => g.sport === currentSport);
+  const pKey = currentProgram ? programKey(currentProgram) : undefined;
+  const filteredPlayers = pKey ? players.filter(p => p.programKey === pKey) : players;
+  const filteredCoaches = pKey ? coaches.filter(c => c.programKey === pKey) : coaches;
 
-  const record = currentSport === 'all' 
-    ? getRecord() 
-    : getRecord(currentSport as any);
+  const filteredGames = currentProgram
+    ? games.filter(g => g.sport === currentProgram.sport && g.gender === currentProgram.gender && g.level === currentProgram.level)
+    : games;
 
-  const statsForSport = currentSport === 'all' ? undefined : importedStats[currentSport];
+  const record = getRecord(currentProgram ?? undefined);
+
+  const statsForSport = currentProgram ? importedStats[programKey(currentProgram)] : undefined;
   const overallImported = statsForSport?.overall;
 
   const totalGames = filteredGames.length;
@@ -35,7 +38,9 @@ export default function TeamStats() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Team Stats</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            {currentProgram ? `${programLabel(currentProgram)} Stats` : 'Team Stats'}
+          </h1>
           <p className="text-muted-foreground">
             Performance metrics and analytics
           </p>
@@ -44,8 +49,8 @@ export default function TeamStats() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 stagger-list">
+        <Card className="hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Record</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -60,7 +65,7 @@ export default function TeamStats() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
@@ -76,7 +81,7 @@ export default function TeamStats() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Games</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -89,22 +94,22 @@ export default function TeamStats() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Size</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{players.length}</div>
+            <div className="text-2xl font-bold">{filteredPlayers.length}</div>
             <p className="text-xs text-muted-foreground">
-              {coaches.length} coaches
+              {filteredCoaches.length} coaches
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Detailed Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 stagger-list">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

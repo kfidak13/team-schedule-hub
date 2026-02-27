@@ -11,14 +11,22 @@ import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { games, currentProgram, currentSport } = useTeam();
+  const { games, currentProgram } = useTeam();
   const { primaryProgram } = useAuth();
 
   const now = new Date();
 
   const filteredGames = useMemo(
-    () => games.filter((g) => currentSport === 'all' || g.sport === currentSport),
-    [games, currentSport]
+    () =>
+      currentProgram
+        ? games.filter(
+            (g) =>
+              g.sport === currentProgram.sport &&
+              g.gender === currentProgram.gender &&
+              g.level === currentProgram.level
+          )
+        : [],
+    [games, currentProgram]
   );
 
   const sortedGames = useMemo(
@@ -47,14 +55,14 @@ export default function Dashboard() {
   if (!currentProgram) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 ring-2 ring-gold/40">
+        <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-[#002855]/10 ring-2 ring-[#D4AF37]/40">
           <img src="/images/webb-logo.png" alt="Webb" className="h-14 w-14 object-contain" />
         </div>
         <div>
           <h2 className="text-2xl font-bold">No program selected</h2>
           <p className="mt-2 text-muted-foreground">Choose a sport to see your dashboard.</p>
         </div>
-        <Button onClick={() => navigate('/get-started')} className="gap-2 border border-gold/40">
+        <Button onClick={() => navigate('/get-started')} className="gap-2 bg-[#D4AF37] text-[#002855] font-bold uppercase tracking-wider hover:bg-[#C5A551]">
           Choose a program <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
@@ -67,21 +75,21 @@ export default function Dashboard() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">Current Program</p>
-          <h1 className="text-3xl font-bold tracking-tight">{programLabel(currentProgram)}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{programLabel(currentProgram)}</h1>
         </div>
         {hasRecord && (
-          <div className="flex items-center gap-3 rounded-xl border border-gold/30 bg-gold/5 px-5 py-3">
-            <span className="text-3xl font-bold text-gold">{wins}</span>
-            <span className="text-xl text-muted-foreground">–</span>
-            <span className="text-3xl font-bold">{losses}</span>
-            <span className="ml-1 text-sm text-muted-foreground">W–L</span>
+          <div className="flex items-center gap-3 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-5 py-3">
+            <span className="text-3xl font-bold text-[#D4AF37]">{wins}</span>
+            <span className="text-xl text-white/50">–</span>
+            <span className="text-3xl font-bold text-white">{losses}</span>
+            <span className="ml-1 text-sm text-white/60">W–L</span>
           </div>
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 stagger-list">
         {/* Next Game */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="card-webb rounded p-5 hover-lift">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Calendar className="h-4 w-4" /> Next Game
           </h2>
@@ -121,7 +129,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Results */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="card-webb rounded p-5 hover-lift">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Trophy className="h-4 w-4" /> Recent Results
           </h2>
@@ -156,7 +164,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 stagger-list">
         {[
           { to: '/schedule', icon: Calendar, label: 'Schedule' },
           { to: '/roster/players', icon: Users, label: 'Roster' },

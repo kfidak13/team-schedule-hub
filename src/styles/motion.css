@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Motion Utilities — Webb Sports Hub
+   Single source of truth for all animations and micro-interactions.
+   Uses design tokens from index.css (:root / .dark).
+   ========================================================================== */
+
+/* ---------- Fade In (opacity + translateY) ---------- */
+.fade-in {
+  animation: fade-in var(--transition-medium) both;
+}
+
+.fade-slide-up {
+  animation: fade-slide-up var(--transition-slow) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance, 6px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Stagger List ----------
+   Apply .stagger-list to a parent; children get incrementally delayed.
+   Works for up to 12 children.                                           */
+.stagger-list > * {
+  opacity: 0;
+  animation: fade-in var(--transition-medium) both;
+}
+
+.stagger-list > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger-list > *:nth-child(2)  { animation-delay: 50ms; }
+.stagger-list > *:nth-child(3)  { animation-delay: 100ms; }
+.stagger-list > *:nth-child(4)  { animation-delay: 150ms; }
+.stagger-list > *:nth-child(5)  { animation-delay: 200ms; }
+.stagger-list > *:nth-child(6)  { animation-delay: 250ms; }
+.stagger-list > *:nth-child(7)  { animation-delay: 300ms; }
+.stagger-list > *:nth-child(8)  { animation-delay: 350ms; }
+.stagger-list > *:nth-child(9)  { animation-delay: 400ms; }
+.stagger-list > *:nth-child(10) { animation-delay: 450ms; }
+.stagger-list > *:nth-child(11) { animation-delay: 500ms; }
+.stagger-list > *:nth-child(12) { animation-delay: 550ms; }
+
+/* ---------- Hover Lift ---------- */
+.hover-lift {
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  will-change: transform;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--elevation-lifted);
+}
+
+/* ---------- Gold CTA Button (Accent — gold bg, navy text) ---------- */
+.btn-gold {
+  background: #D4AF37;
+  color: #002855;
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.btn-gold:hover {
+  background: #C5A551;
+  box-shadow: 0 2px 8px rgba(0, 40, 85, 0.15);
+}
+
+/* ---------- Webb Primary Button Override ---------- */
+.btn-webb-primary {
+  background: #002855;
+  color: #FFFFFF;
+  border-bottom: 2px solid #D4AF37;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.btn-webb-primary:hover {
+  background: #001a3d;
+  box-shadow: 0 2px 8px rgba(0, 40, 85, 0.2);
+}
+
+/* ---------- Webb Secondary Button ---------- */
+.btn-webb-secondary {
+  background: #FFFFFF;
+  color: #002855;
+  border: 1px solid #002855;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.btn-webb-secondary:hover {
+  background: #002855;
+  color: #FFFFFF;
+}
+
+/* ---------- Gold Divider ---------- */
+.gold-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+  margin: 2rem 0;
+}
+
+/* ---------- Card with Gold Top Border ---------- */
+.card-webb {
+  background: hsl(212 100% 13%);
+  border: 1px solid hsl(212 50% 22%);
+  border-top: 3px solid #D4AF37;
+  border-radius: 3px;
+}
+
+/* ---------- Focus Ring (keyboard nav) ---------- */
+:focus-visible {
+  outline: 2px solid #D4AF37;
+  outline-offset: 2px;
+}
+
+/* ---------- Reduced Motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-slide-up,
+  .stagger-list > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .hover-lift:hover {
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

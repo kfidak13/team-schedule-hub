@@ -2,102 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ==========================================================================
+   Webb Schools Design System — Navy-Primary Theme
+   Navy bg: ~#001428  →  hsl(212, 100%, 9%)
+   Card/surface: ~#001f3d  →  hsl(212, 100%, 13%)  (slightly lighter than bg)
+   Gold: #D4AF37  →  hsl(46, 65%, 52%)
+   Foreground/text: #FFFFFF
+   Muted text: rgba(255,255,255,0.65)
+   ========================================================================== */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 52% 10%;
+    --background: 212 100% 9%;
+    --foreground: 0 0% 100%;
 
-    --card: 220 30% 98%;
-    --card-foreground: 222 52% 10%;
+    --card: 212 100% 13%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 52% 10%;
+    --popover: 212 100% 13%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 220 68% 26%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 212 100% 9%;
 
-    --secondary: 220 22% 94%;
-    --secondary-foreground: 220 68% 22%;
+    --secondary: 212 60% 18%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 22% 94%;
-    --muted-foreground: 220 14% 44%;
+    --muted: 212 60% 16%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 45 92% 52%;
-    --accent-foreground: 220 68% 16%;
+    --accent: 46 65% 52%;
+    --accent-foreground: 212 100% 9%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 88%;
-    --input: 220 20% 88%;
-    --ring: 45 92% 52%;
+    --border: 212 50% 22%;
+    --input: 212 60% 16%;
+    --ring: 46 65% 52%;
 
-    --gold: 45 92% 52%;
+    --gold: 46 65% 52%;
 
-    --radius: 0.4rem;
+    --radius: 0.25rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Transitions */
+    --transition-fast: 300ms ease;
+    --transition-medium: 320ms cubic-bezier(.2,.9,.2,1);
+    --transition-slow: 500ms cubic-bezier(.2,.9,.2,1);
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Elevation */
+    --elevation-soft: 0 2px 8px rgba(0, 0, 0, 0.25);
+    --elevation-lifted: 0 6px 20px rgba(0, 0, 0, 0.35);
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Motion */
+    --motion-distance: 6px;
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222 52% 8%;
-    --foreground: 210 20% 98%;
-
-    --card: 221 44% 11%;
-    --card-foreground: 210 20% 98%;
-
-    --popover: 221 44% 11%;
-    --popover-foreground: 210 20% 98%;
-
-    --primary: 219 72% 38%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 221 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-
-    --muted: 221 28% 17%;
-    --muted-foreground: 220 14% 70%;
-
-    --accent: 221 28% 17%;
-    --accent-foreground: 210 20% 98%;
-
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 210 20% 98%;
-
-    --border: 221 24% 18%;
-    --input: 221 24% 18%;
-    --ring: 45 92% 52%;
-
-    --gold: 45 92% 52%;
-
-    --radius: 0.4rem;
-
-    --sidebar-background: 221 44% 11%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 219 72% 38%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 221 28% 17%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 221 24% 18%;
-    --sidebar-ring: 45 92% 52%;
+    --sidebar-background: 212 100% 7%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 212 100% 9%;
+    --sidebar-accent: 212 60% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 212 50% 20%;
+    --sidebar-ring: 46 65% 52%;
   }
 }
 
