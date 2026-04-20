@@ -1,5 +1,6 @@
 import { HtmlImporter } from '@/components/schedule/HtmlImporter';
 import { ScheduleList } from '@/components/schedule/ScheduleList';
+import { AddGameDialog } from '@/components/schedule/AddGameDialog';
 import { useTeam } from '@/context/TeamContext';
 import { useAuth } from '@/context/AuthContext';
 import { programLabel } from '@/lib/programUtils';
@@ -37,6 +38,7 @@ export default function Schedule() {
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-2">
             <HtmlImporter />
+            <AddGameDialog />
           </div>
         )}
       </div>

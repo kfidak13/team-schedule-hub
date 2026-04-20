@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TeamProvider } from "./context/TeamContext";
 import { AuthProvider } from "./context/AuthContext";
+import { TennisProvider } from "./context/TennisContext";
+import { TrackProvider } from "./context/TrackContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -21,6 +23,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <TeamProvider>
+        <TennisProvider>
+        <TrackProvider>
         <AuthProvider>
           <Toaster />
           <Sonner />
@@ -57,6 +61,8 @@ const App = () => (
             </AppLayout>
           </BrowserRouter>
         </AuthProvider>
+        </TrackProvider>
+        </TennisProvider>
       </TeamProvider>
     </TooltipProvider>
   </QueryClientProvider>

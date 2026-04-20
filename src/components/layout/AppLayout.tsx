@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import type { ElementType } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTeam } from '@/context/TeamContext';
@@ -7,6 +7,8 @@ import { programLabel, getSportGroups, levelLabel } from '@/lib/programUtils';
 import type { Program } from '@/types/team';
 import { Footer } from './Footer';
 import { PageTransition } from './PageTransition';
+import { MobileLayout } from './MobileLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Calendar, Users, LayoutDashboard, BarChart3, Trophy, Upload, List, UserCircle, Shield, Gamepad2, Menu, ChevronDown, Layers, ShieldCheck, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -68,6 +70,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { currentProgram, setCurrentProgram } = useTeam();
   const { isAdmin } = useAuth();
+  const isMobile = useIsMobile();
 
   function selectProgram(program: Program) {
     setCurrentProgram(program);
@@ -82,10 +85,14 @@ export function AppLayout({ children }: AppLayoutProps) {
     return found?.label;
   }, [location.pathname]);
 
+  if (isMobile) {
+    return <MobileLayout>{children}</MobileLayout>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-[#002855] shadow-md">
-        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-4">
+      <header className="sticky top-0 z-50 bg-[#002855] shadow-md" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-3 sm:px-4">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden">
@@ -280,42 +287,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Layers className="h-4 w-4" />
                   Sports
                 </DropdownMenuLabel>
-                {sportGroups.map((group) => (
-                  <DropdownMenuSub key={group.sport}>
-                    <DropdownMenuSubTrigger className="pl-6 text-sm">
-                      {group.name}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-44">
-                      {group.hasMultipleGenders && (
-                        <>
-                          <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">Boys</DropdownMenuLabel>
-                          {group.programs
-                            .filter((p) => p.gender === 'boys')
-                            .map((p) => (
-                              <DropdownMenuItem key={p.label} onClick={() => selectProgram(p)}>
-                                {levelLabel(p.level)}
-                              </DropdownMenuItem>
-                            ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">Girls</DropdownMenuLabel>
-                          {group.programs
-                            .filter((p) => p.gender === 'girls')
-                            .map((p) => (
-                              <DropdownMenuItem key={p.label} onClick={() => selectProgram(p)}>
-                                {levelLabel(p.level)}
-                              </DropdownMenuItem>
-                            ))}
-                        </>
-                      )}
-                      {!group.hasMultipleGenders &&
-                        group.programs.map((p) => (
-                          <DropdownMenuItem key={p.label} onClick={() => selectProgram(p)}>
-                            {levelLabel(p.level)}
-                          </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ))}
+                <MobileSportsList sportGroups={sportGroups} selectProgram={selectProgram} currentProgram={currentProgram} />
 
                 {navSections
                   .filter((s) => s.children)
@@ -348,7 +320,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] px-6 py-8 md:py-12">
+      <main className="mx-auto max-w-[1200px] px-3 py-4 sm:px-6 sm:py-8 md:py-12">
         <PageTransition>
           {children}
         </PageTransition>
@@ -356,5 +328,96 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {location.pathname !== '/' && <Footer />}
     </div>
+  );
+}
+
+type SportGroup = ReturnType<typeof getSportGroups>[number];
+
+function MobileSportsList({
+  sportGroups,
+  selectProgram,
+  currentProgram,
+}: {
+  sportGroups: SportGroup[];
+  selectProgram: (p: Program) => void;
+  currentProgram: Program | null;
+}) {
+  const [openSport, setOpenSport] = useState<string | null>(null);
+
+  return (
+    <>
+      {sportGroups.map((group) => (
+        <div key={group.sport}>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setOpenSport(openSport === group.sport ? null : group.sport);
+            }}
+            className="flex items-center justify-between pl-6 text-sm"
+          >
+            {group.name}
+            <ChevronDown
+              className={cn(
+                'h-3.5 w-3.5 transition-transform duration-200',
+                openSport === group.sport && 'rotate-180'
+              )}
+            />
+          </DropdownMenuItem>
+          {openSport === group.sport && (
+            <div className="pl-10 pb-1">
+              {group.hasMultipleGenders ? (
+                <>
+                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">Boys</p>
+                  {group.programs.filter((p) => p.gender === 'boys').map((p) => (
+                    <DropdownMenuItem
+                      key={p.label}
+                      onClick={() => selectProgram(p)}
+                      className={cn(
+                        'text-sm',
+                        currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
+                          ? 'text-[#D4AF37] font-medium'
+                          : ''
+                      )}
+                    >
+                      {levelLabel(p.level)}
+                    </DropdownMenuItem>
+                  ))}
+                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">Girls</p>
+                  {group.programs.filter((p) => p.gender === 'girls').map((p) => (
+                    <DropdownMenuItem
+                      key={p.label}
+                      onClick={() => selectProgram(p)}
+                      className={cn(
+                        'text-sm',
+                        currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
+                          ? 'text-[#D4AF37] font-medium'
+                          : ''
+                      )}
+                    >
+                      {levelLabel(p.level)}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              ) : (
+                group.programs.map((p) => (
+                  <DropdownMenuItem
+                    key={p.label}
+                    onClick={() => selectProgram(p)}
+                    className={cn(
+                      'text-sm',
+                      currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
+                        ? 'text-[#D4AF37] font-medium'
+                        : ''
+                    )}
+                  >
+                    {levelLabel(p.level)}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
   );
 }

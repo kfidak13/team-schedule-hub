@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronDown, Users, Shield } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { USTAImportDialog } from '@/components/tennis/USTAImportDialog';
+import { TrackImportDialog } from '@/components/track/TrackImportDialog';
 import { toast } from 'sonner';
 
 export default function Roster() {
@@ -80,6 +82,8 @@ export default function Roster() {
           </DropdownMenu>
 
           {isAdmin && <RosterImporter />}
+          {isAdmin && currentProgram?.sport === 'tennis' && <USTAImportDialog />}
+          {isAdmin && currentProgram?.sport === 'track_field' && <TrackImportDialog />}
           {isAdmin && <AddPersonDialog type="player" />}
           {isAdmin && <AddPersonDialog type="coach" />}
         </div>

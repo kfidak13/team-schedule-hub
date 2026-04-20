@@ -12,6 +12,7 @@ export type Sport =
   | 'wrestling'
   | 'swim_dive'
   | 'basketball'
+  | 'track_field'
   | 'other';
 
 export type Gender = 'boys' | 'girls';
@@ -87,4 +88,34 @@ export interface TeamInfo {
   sport: Sport;
   season: string;
   headCoach?: string;
+}
+
+export interface TrackResult {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  event: string;
+  time: string;        // raw time string e.g. "4:32.15" or "55.23" or "18-04.50" (field)
+  timeMs: number;      // normalized milliseconds for sorting/PR comparison (0 for field events)
+  place?: number;
+  meetName: string;
+  meetDate: string;
+  isPR: boolean;
+  importedAt: string;
+}
+
+export type TennisMatchType = 'singles' | 'doubles';
+
+export interface TennisMatchRecord {
+  id: string;
+  playerId: string;
+  playerName: string;
+  opponentName: string;
+  opponentSchool: string;
+  matchType: TennisMatchType;
+  round: string;
+  score: string;
+  won: boolean;
+  date: string;
+  importedAt: string;
 }

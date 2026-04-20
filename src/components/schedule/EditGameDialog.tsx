@@ -29,7 +29,7 @@ interface EditGameDialogProps {
 const SPORTS: Sport[] = [
   'soccer','baseball','tennis','football','badminton','swim',
   'cross_country','volleyball','water_polo','golf','wrestling',
-  'swim_dive','basketball','other',
+  'swim_dive','basketball','track_field','other',
 ];
 
 const sportLabel = (s: Sport) =>

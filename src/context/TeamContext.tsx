@@ -1,246 +1,351 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Game, Player, Coach, Sport, TeamInfo, ImportedTeamStats, Program } from '@/types/team';
 import { generateId } from '@/lib/htmlParser';
+import { supabase } from '@/lib/supabase';
 
 interface TeamContextType {
-  // Current sport filter
   currentSport: Sport | 'all';
   setCurrentSport: (sport: Sport | 'all') => void;
-
-  // Current program filter
   currentProgram?: Program;
   setCurrentProgram: (program: Program) => void;
-  
-  // Games
+  loading: boolean;
   games: Game[];
   addGame: (game: Omit<Game, 'id'>) => void;
   addGames: (games: Omit<Game, 'id'>[]) => void;
   replaceGamesForProgram: (program: Program, games: Game[]) => void;
   updateGame: (id: string, game: Partial<Game>) => void;
   deleteGame: (id: string) => void;
-  
-  // Players
   players: Player[];
   addPlayer: (player: Omit<Player, 'id'>) => void;
   addPlayers: (players: Player[]) => void;
   replacePlayersForProgram: (programKey: string, players: Player[]) => void;
   updatePlayer: (id: string, player: Partial<Player>) => void;
   deletePlayer: (id: string) => void;
-  
-  // Coaches
   coaches: Coach[];
   addCoach: (coach: Omit<Coach, 'id'>) => void;
   addCoaches: (coaches: Coach[]) => void;
   replaceCoachesForProgram: (programKey: string, coaches: Coach[]) => void;
   updateCoach: (id: string, coach: Partial<Coach>) => void;
   deleteCoach: (id: string) => void;
-  
-  // Team Info
   teamInfos: TeamInfo[];
   addTeamInfo: (info: TeamInfo) => void;
-
-  // Imported Team Stats — keyed by programKey (e.g. "soccer_boys_varsity")
   importedStats: Record<string, ImportedTeamStats>;
   addImportedStats: (key: string, stats: ImportedTeamStats) => void;
-  
-  // Stats
   getRecord: (program?: Program) => { wins: number; losses: number };
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'sports-team-data';
+// ── Row-to-model mappers ──────────────────────────────────────────────────────
 
-interface StoredData {
-  games: Game[];
-  players: Player[];
-  coaches: Coach[];
-  teamInfos: TeamInfo[];
-  importedStats: Record<string, ImportedTeamStats>;
-  currentProgram?: Program;
+function rowToGame(row: any): Game {
+  return {
+    id: row.id,
+    sport: row.sport,
+    gender: row.gender,
+    level: row.level,
+    opponent: row.opponent,
+    date: new Date(row.date),
+    time: row.time,
+    venue: row.venue,
+    location: row.location,
+    isLeague: row.is_league,
+    result: row.result,
+    title: row.title,
+  };
 }
 
-function loadFromStorage(): StoredData {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      // Convert date strings back to Date objects
-      data.games = data.games.map((g: any) => ({
-        ...g,
-        date: new Date(g.date),
-      }));
-      return data;
-    }
-  } catch (e) {
-    console.error('Failed to load from storage:', e);
-  }
-  return { games: [], players: [], coaches: [], teamInfos: [], importedStats: {}, currentProgram: undefined };
+function gameToRow(game: Game) {
+  return {
+    id: game.id,
+    sport: game.sport,
+    gender: game.gender,
+    level: game.level,
+    opponent: game.opponent ?? null,
+    date: game.date instanceof Date ? game.date.toISOString() : game.date,
+    time: game.time ?? null,
+    venue: game.venue ?? null,
+    location: game.location ?? null,
+    is_league: game.isLeague ?? false,
+    result: game.result ?? null,
+    title: game.title ?? null,
+  };
 }
 
-function saveToStorage(data: StoredData) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error('Failed to save to storage:', e);
-  }
+function rowToPlayer(row: any): Player {
+  return {
+    id: row.id,
+    programKey: row.program_key,
+    name: row.name,
+    jerseyNumber: row.jersey_number,
+    position: row.position,
+    hometown: row.hometown,
+    email: row.email,
+    phone: row.phone,
+    photo: row.photo,
+    rosterRole: row.roster_role,
+    sports: row.sports ?? [],
+  };
 }
+
+function playerToRow(player: Player) {
+  return {
+    id: player.id,
+    program_key: player.programKey ?? null,
+    name: player.name,
+    jersey_number: player.jerseyNumber ?? null,
+    position: player.position ?? null,
+    hometown: player.hometown ?? null,
+    email: player.email ?? null,
+    phone: player.phone ?? null,
+    photo: player.photo ?? null,
+    roster_role: player.rosterRole ?? null,
+    sports: player.sports ?? [],
+  };
+}
+
+function rowToCoach(row: any): Coach {
+  return {
+    id: row.id,
+    programKey: row.program_key,
+    name: row.name,
+    role: row.role ?? 'Assistant Coach',
+    email: row.email,
+    phone: row.phone,
+    photo: row.photo,
+    sports: row.sports ?? [],
+  };
+}
+
+function coachToRow(coach: Coach) {
+  return {
+    id: coach.id,
+    program_key: coach.programKey ?? null,
+    name: coach.name,
+    role: coach.role ?? null,
+    email: coach.email ?? null,
+    phone: coach.phone ?? null,
+    photo: coach.photo ?? null,
+    sports: coach.sports ?? [],
+  };
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const [currentSport, setCurrentSport] = useState<Sport | 'all'>('all');
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  // Initialize state from localStorage
-  const initialData = loadFromStorage();
-  const [games, setGames] = useState<Game[]>(initialData.games);
-  const [players, setPlayers] = useState<Player[]>(initialData.players);
-  const [coaches, setCoaches] = useState<Coach[]>(initialData.coaches);
-  const [teamInfos, setTeamInfos] = useState<TeamInfo[]>(initialData.teamInfos);
-  const [importedStats, setImportedStats] = useState<Record<string, ImportedTeamStats>>(initialData.importedStats || {});
-  const [currentProgram, setCurrentProgramState] = useState<Program | undefined>(initialData.currentProgram);
-  
-  // Mark as loaded after first render
+  const [loading, setLoading] = useState(true);
+  const [games, setGames] = useState<Game[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [teamInfos, setTeamInfos] = useState<TeamInfo[]>([]);
+  const [importedStats, setImportedStats] = useState<Record<string, ImportedTeamStats>>({});
+  const [currentProgram, setCurrentProgramState] = useState<Program | undefined>(() => {
+    try {
+      const s = localStorage.getItem('currentProgram');
+      return s ? JSON.parse(s) : undefined;
+    } catch { return undefined; }
+  });
+
+  // ── Initial load from Supabase ──
   useEffect(() => {
-    setIsLoaded(true);
+    async function fetchAll() {
+      setLoading(true);
+      const [gRes, pRes, cRes, sRes] = await Promise.all([
+        supabase.from('games').select('*'),
+        supabase.from('players').select('*'),
+        supabase.from('coaches').select('*'),
+        supabase.from('imported_stats').select('*'),
+      ]);
+      if (gRes.data) setGames(gRes.data.map(rowToGame));
+      if (pRes.data) setPlayers(pRes.data.map(rowToPlayer));
+      if (cRes.data) setCoaches(cRes.data.map(rowToCoach));
+      if (sRes.data) {
+        const stats: Record<string, ImportedTeamStats> = {};
+        sRes.data.forEach((row: any) => { stats[row.program_key] = row.data; });
+        setImportedStats(stats);
+      }
+      setLoading(false);
+    }
+    fetchAll();
   }, []);
-  
-  // Save data on changes (only after initial load)
+
+  // ── Real-time subscriptions so all viewers see admin changes instantly ──
   useEffect(() => {
-    if (!isLoaded) return;
-    saveToStorage({ games, players, coaches, teamInfos, importedStats, currentProgram });
-  }, [games, players, coaches, teamInfos, importedStats, currentProgram, isLoaded]);
+    const gamesSub = supabase.channel('games-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
+        supabase.from('games').select('*').then(({ data }) => {
+          if (data) setGames(data.map(rowToGame));
+        });
+      }).subscribe();
+
+    const playersSub = supabase.channel('players-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
+        supabase.from('players').select('*').then(({ data }) => {
+          if (data) setPlayers(data.map(rowToPlayer));
+        });
+      }).subscribe();
+
+    const coachesSub = supabase.channel('coaches-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coaches' }, () => {
+        supabase.from('coaches').select('*').then(({ data }) => {
+          if (data) setCoaches(data.map(rowToCoach));
+        });
+      }).subscribe();
+
+    const statsSub = supabase.channel('stats-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'imported_stats' }, () => {
+        supabase.from('imported_stats').select('*').then(({ data }) => {
+          if (data) {
+            const stats: Record<string, ImportedTeamStats> = {};
+            data.forEach((row: any) => { stats[row.program_key] = row.data; });
+            setImportedStats(stats);
+          }
+        });
+      }).subscribe();
+
+    return () => {
+      supabase.removeChannel(gamesSub);
+      supabase.removeChannel(playersSub);
+      supabase.removeChannel(coachesSub);
+      supabase.removeChannel(statsSub);
+    };
+  }, []);
 
   const setCurrentProgram = (program: Program) => {
     setCurrentProgramState(program);
     setCurrentSport(program.sport);
-  };
-  
-  const addGame = (game: Omit<Game, 'id'>) => {
-    setGames(prev => [...prev, { ...game, id: generateId() }]);
-  };
-  
-  const addGames = (newGames: Omit<Game, 'id'>[]) => {
-    const gamesWithIds = newGames.map(g => ({ ...g, id: generateId() }));
-    setGames(prev => [...prev, ...gamesWithIds]);
+    localStorage.setItem('currentProgram', JSON.stringify(program));
   };
 
-  const replaceGamesForProgram = (program: Program, newGames: Game[]) => {
+  // ── Games ──
+  const addGame = async (game: Omit<Game, 'id'>) => {
+    const newGame: Game = { ...game, id: generateId() };
+    setGames(prev => [...prev, newGame]);
+    await supabase.from('games').insert(gameToRow(newGame));
+  };
+
+  const addGames = async (newGames: Omit<Game, 'id'>[]) => {
+    const withIds = newGames.map(g => ({ ...g, id: generateId() }));
+    setGames(prev => [...prev, ...withIds]);
+    await supabase.from('games').insert(withIds.map(gameToRow));
+  };
+
+  const replaceGamesForProgram = async (program: Program, newGames: Game[]) => {
     setGames(prev => {
       const kept = prev.filter(g => !(g.sport === program.sport && g.gender === program.gender && g.level === program.level));
       return [...kept, ...newGames];
     });
+    await supabase.from('games').delete().match({ sport: program.sport, gender: program.gender, level: program.level });
+    if (newGames.length > 0) await supabase.from('games').insert(newGames.map(gameToRow));
   };
-  
-  const updateGame = (id: string, game: Partial<Game>) => {
+
+  const updateGame = async (id: string, game: Partial<Game>) => {
     setGames(prev => prev.map(g => g.id === id ? { ...g, ...game } : g));
+    const updated = games.find(g => g.id === id);
+    if (updated) await supabase.from('games').update(gameToRow({ ...updated, ...game })).eq('id', id);
   };
-  
-  const deleteGame = (id: string) => {
+
+  const deleteGame = async (id: string) => {
     setGames(prev => prev.filter(g => g.id !== id));
-  };
-  
-  const addPlayer = (player: Omit<Player, 'id'>) => {
-    setPlayers(prev => [...prev, { ...player, id: generateId() }]);
-  };
-  
-  const addPlayers = (newPlayers: Player[]) => {
-    setPlayers(prev => {
-      // Avoid duplicates by name within the same programKey
-      const uniqueNew = newPlayers.filter(np => {
-        return !prev.some(p => p.name.toLowerCase() === np.name.toLowerCase() && p.programKey === np.programKey);
-      });
-      return [...prev, ...uniqueNew];
-    });
+    await supabase.from('games').delete().eq('id', id);
   };
 
-  const replacePlayersForProgram = (pKey: string, newPlayers: Player[]) => {
+  // ── Players ──
+  const addPlayer = async (player: Omit<Player, 'id'>) => {
+    const newPlayer: Player = { ...player, id: generateId() };
+    setPlayers(prev => [...prev, newPlayer]);
+    await supabase.from('players').insert(playerToRow(newPlayer));
+  };
+
+  const addPlayers = async (newPlayers: Player[]) => {
+    const unique = newPlayers.filter(np =>
+      !players.some(p => p.name.toLowerCase() === np.name.toLowerCase() && p.programKey === np.programKey)
+    );
+    setPlayers(prev => [...prev, ...unique]);
+    if (unique.length > 0) await supabase.from('players').insert(unique.map(playerToRow));
+  };
+
+  const replacePlayersForProgram = async (pKey: string, newPlayers: Player[]) => {
     setPlayers(prev => [...prev.filter(p => p.programKey !== pKey), ...newPlayers]);
+    await supabase.from('players').delete().eq('program_key', pKey);
+    if (newPlayers.length > 0) await supabase.from('players').insert(newPlayers.map(playerToRow));
   };
-  
-  const updatePlayer = (id: string, player: Partial<Player>) => {
+
+  const updatePlayer = async (id: string, player: Partial<Player>) => {
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...player } : p));
+    const updated = players.find(p => p.id === id);
+    if (updated) await supabase.from('players').update(playerToRow({ ...updated, ...player })).eq('id', id);
   };
-  
-  const deletePlayer = (id: string) => {
+
+  const deletePlayer = async (id: string) => {
     setPlayers(prev => prev.filter(p => p.id !== id));
-  };
-  
-  const addCoach = (coach: Omit<Coach, 'id'>) => {
-    setCoaches(prev => [...prev, { ...coach, id: generateId() }]);
-  };
-  
-  const addCoaches = (newCoaches: Coach[]) => {
-    setCoaches(prev => {
-      // Avoid duplicates by name within the same programKey
-      const uniqueNew = newCoaches.filter(nc => {
-        return !prev.some(c => c.name.toLowerCase() === nc.name.toLowerCase() && c.programKey === nc.programKey);
-      });
-      return [...prev, ...uniqueNew];
-    });
+    await supabase.from('players').delete().eq('id', id);
   };
 
-  const replaceCoachesForProgram = (pKey: string, newCoaches: Coach[]) => {
+  // ── Coaches ──
+  const addCoach = async (coach: Omit<Coach, 'id'>) => {
+    const newCoach: Coach = { ...coach, id: generateId() };
+    setCoaches(prev => [...prev, newCoach]);
+    await supabase.from('coaches').insert(coachToRow(newCoach));
+  };
+
+  const addCoaches = async (newCoaches: Coach[]) => {
+    const unique = newCoaches.filter(nc =>
+      !coaches.some(c => c.name.toLowerCase() === nc.name.toLowerCase() && c.programKey === nc.programKey)
+    );
+    setCoaches(prev => [...prev, ...unique]);
+    if (unique.length > 0) await supabase.from('coaches').insert(unique.map(coachToRow));
+  };
+
+  const replaceCoachesForProgram = async (pKey: string, newCoaches: Coach[]) => {
     setCoaches(prev => [...prev.filter(c => c.programKey !== pKey), ...newCoaches]);
-  };
-  
-  const updateCoach = (id: string, coach: Partial<Coach>) => {
-    setCoaches(prev => prev.map(c => c.id === id ? { ...c, ...coach } : c));
-  };
-  
-  const deleteCoach = (id: string) => {
-    setCoaches(prev => prev.filter(c => c.id !== id));
-  };
-  
-  const addTeamInfo = (info: TeamInfo) => {
-    setTeamInfos(prev => {
-      // Replace if same sport exists
-      const filtered = prev.filter(t => t.sport !== info.sport);
-      return [...filtered, info];
-    });
+    await supabase.from('coaches').delete().eq('program_key', pKey);
+    if (newCoaches.length > 0) await supabase.from('coaches').insert(newCoaches.map(coachToRow));
   };
 
-  const addImportedStats = (key: string, stats: ImportedTeamStats) => {
-    setImportedStats(prev => ({ ...prev, [key]: stats }));
+  const updateCoach = async (id: string, coach: Partial<Coach>) => {
+    setCoaches(prev => prev.map(c => c.id === id ? { ...c, ...coach } : c));
+    const updated = coaches.find(c => c.id === id);
+    if (updated) await supabase.from('coaches').update(coachToRow({ ...updated, ...coach })).eq('id', id);
   };
-  
+
+  const deleteCoach = async (id: string) => {
+    setCoaches(prev => prev.filter(c => c.id !== id));
+    await supabase.from('coaches').delete().eq('id', id);
+  };
+
+  // ── Team Info (local only — not user-facing data) ──
+  const addTeamInfo = (info: TeamInfo) => {
+    setTeamInfos(prev => [...prev.filter(t => t.sport !== info.sport), info]);
+  };
+
+  // ── Imported Stats ──
+  const addImportedStats = async (key: string, stats: ImportedTeamStats) => {
+    setImportedStats(prev => ({ ...prev, [key]: stats }));
+    await supabase.from('imported_stats').upsert({ program_key: key, data: stats });
+  };
+
   const getRecord = (program?: Program) => {
-    const filteredGames = program
+    const filtered = program
       ? games.filter(g => g.sport === program.sport && g.gender === program.gender && g.level === program.level && g.result)
       : games.filter(g => g.result);
     return {
-      wins: filteredGames.filter(g => g.result?.won).length,
-      losses: filteredGames.filter(g => g.result && !g.result.won).length,
+      wins: filtered.filter(g => g.result?.won).length,
+      losses: filtered.filter(g => g.result && !g.result.won).length,
     };
   };
-  
+
   return (
     <TeamContext.Provider value={{
-      currentSport,
-      setCurrentSport,
-      currentProgram,
-      setCurrentProgram,
-      games,
-      addGame,
-      addGames,
-      replaceGamesForProgram,
-      updateGame,
-      deleteGame,
-      players,
-      addPlayer,
-      addPlayers,
-      replacePlayersForProgram,
-      updatePlayer,
-      deletePlayer,
-      coaches,
-      addCoach,
-      addCoaches,
-      replaceCoachesForProgram,
-      updateCoach,
-      deleteCoach,
-      teamInfos,
-      addTeamInfo,
-      importedStats,
-      addImportedStats,
+      currentSport, setCurrentSport,
+      currentProgram, setCurrentProgram,
+      loading,
+      games, addGame, addGames, replaceGamesForProgram, updateGame, deleteGame,
+      players, addPlayer, addPlayers, replacePlayersForProgram, updatePlayer, deletePlayer,
+      coaches, addCoach, addCoaches, replaceCoachesForProgram, updateCoach, deleteCoach,
+      teamInfos, addTeamInfo,
+      importedStats, addImportedStats,
       getRecord,
     }}>
       {children}
@@ -250,8 +355,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
 export function useTeam() {
   const context = useContext(TeamContext);
-  if (!context) {
-    throw new Error('useTeam must be used within a TeamProvider');
-  }
+  if (!context) throw new Error('useTeam must be used within a TeamProvider');
   return context;
 }

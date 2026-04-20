@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
+import { useAuth } from '@/context/AuthContext';
 import { GameCard } from './GameCard';
 import { EditGameDialog } from './EditGameDialog';
 import { Game } from '@/types/team';
@@ -23,6 +24,7 @@ type LeagueFilter = 'all' | 'league' | 'non-league';
 
 export function ScheduleList() {
   const { games, currentProgram, deleteGame } = useTeam();
+  const { isAdmin } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [venueFilter, setVenueFilter] = useState<VenueFilter>('all');
@@ -141,8 +143,8 @@ export function ScheduleList() {
             <GameCard
               key={game.id}
               game={game}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              onEdit={isAdmin ? handleEdit : undefined}
+              onDelete={isAdmin ? handleDelete : undefined}
             />
           ))}
         </div>
@@ -158,8 +160,8 @@ export function ScheduleList() {
                   <GameCard
                     key={game.id}
                     game={game}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onEdit={isAdmin ? handleEdit : undefined}
+                    onDelete={isAdmin ? handleDelete : undefined}
                   />
                 ))}
               </div>

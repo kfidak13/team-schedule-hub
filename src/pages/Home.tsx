@@ -31,7 +31,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative -mx-6 -mt-8 flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center md:-mt-12">
+    <div className="relative -mx-3 -mt-4 flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 text-center sm:-mx-6 sm:-mt-8 md:-mt-12">
 
       {/* Background image — full bleed, crossfade */}
       <div
@@ -60,7 +60,7 @@ export default function Home() {
           <img src="/images/webb-logo.png" alt="Webb" className="h-full w-full object-contain brightness-0 invert drop-shadow-sm" loading="lazy" />
         </div>
 
-        <h1 className="text-5xl font-bold tracking-tight text-white drop-shadow-lg sm:text-6xl md:text-7xl">
+        <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-lg sm:text-5xl md:text-6xl lg:text-7xl">
           Webb Sports Hub
         </h1>
         <p className="mt-4 max-w-sm text-base text-white/75 sm:text-lg">

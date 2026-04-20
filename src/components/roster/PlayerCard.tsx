@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Mail, Phone, Trash2, Edit, MapPin, MoreVertical, UserCog } from 'lucide-react';
+import { Mail, Phone, Trash2, Edit, MapPin, MoreVertical, UserCog, Trophy } from 'lucide-react';
 import silhouette from '@/assets/avatar-silhouette.svg';
 import {
   DropdownMenu,
@@ -13,6 +13,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useTeam } from '@/context/TeamContext';
+import { useAuth } from '@/context/AuthContext';
+import { useState } from 'react';
+import { PlayerRecordModal } from '@/components/tennis/PlayerRecordModal';
+import { useTennis } from '@/context/TennisContext';
+import { TrackRecordModal } from '@/components/track/TrackRecordModal';
+import { useTrack } from '@/context/TrackContext';
 
 interface PlayerCardProps {
   player: Player;
@@ -22,6 +28,28 @@ interface PlayerCardProps {
 
 export function PlayerCard({ player, onEdit, onDelete }: PlayerCardProps) {
   const { updatePlayer } = useTeam();
+  const { isAdmin } = useAuth();
+  const { getPlayerRecords, getPlayerRecordsByName } = useTennis();
+  const { getAthleteResults, getAthleteResultsByName } = useTrack();
+  const [showRecord, setShowRecord] = useState(false);
+  const [showTrackRecord, setShowTrackRecord] = useState(false);
+
+  const isTennisPlayer = player.sports?.includes('tennis');
+  const isTrackPlayer = player.sports?.includes('track_field');
+
+  const playerRecords = isTennisPlayer
+    ? (getPlayerRecords(player.id).length > 0
+        ? getPlayerRecords(player.id)
+        : getPlayerRecordsByName(player.name))
+    : [];
+  const hasRecords = playerRecords.length > 0;
+
+  const trackRecords = isTrackPlayer
+    ? (getAthleteResults(player.id).length > 0
+        ? getAthleteResults(player.id)
+        : getAthleteResultsByName(player.name))
+    : [];
+  const hasTrackRecords = trackRecords.length > 0;
 
   const initials = player.name
     .split(' ')
@@ -33,116 +61,158 @@ export function PlayerCard({ player, onEdit, onDelete }: PlayerCardProps) {
   const isManager = (player.rosterRole || 'player') === 'manager';
   
   return (
-    <Card className="group transition-shadow hover:shadow-md">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-4">
-          <Avatar className="h-16 w-16 ring-1 ring-border">
-            <AvatarImage src={player.photo || silhouette} alt={player.name} />
-            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold">{player.name}</h3>
-              {player.jerseyNumber && (
-                <Badge variant="outline" className="border-gold/60 bg-gold/10 text-gold font-semibold">
-                  #{player.jerseyNumber}
-                </Badge>
-              )}
-              {isManager && (
-                <Badge variant="outline" className="border-muted-foreground/40 font-normal text-muted-foreground">
-                  Manager
-                </Badge>
-              )}
-            </div>
-            
-            {player.position && (
-              <p className="text-sm text-muted-foreground">{player.position}</p>
-            )}
+    <>
+      <Card className="group transition-shadow hover:shadow-md">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <Avatar className="h-16 w-16 ring-1 ring-border">
+              <AvatarImage src={player.photo || silhouette} alt={player.name} />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
 
-            {player.hometown && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                <span>{player.hometown}</span>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">{player.name}</h3>
+                {player.jerseyNumber && (
+                  <Badge variant="outline" className="border-gold/60 bg-gold/10 text-gold font-semibold">
+                    #{player.jerseyNumber}
+                  </Badge>
+                )}
+                {isManager && (
+                  <Badge variant="outline" className="border-muted-foreground/40 font-normal text-muted-foreground">
+                    Manager
+                  </Badge>
+                )}
+              </div>
+
+              {player.position && (
+                <p className="text-sm text-muted-foreground">{player.position}</p>
+              )}
+
+              {player.hometown && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>{player.hometown}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {player.sports.map((sport) => (
+                  <Badge key={sport} variant="secondary" className="font-normal capitalize">
+                    {sport}
+                  </Badge>
+                ))}
+                {isTrackPlayer && hasTrackRecords && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-xs text-gold hover:text-gold hover:bg-gold/10"
+                    onClick={() => setShowTrackRecord(true)}
+                  >
+                    <Trophy className="h-3 w-3" />
+                    Record
+                  </Button>
+                )}
+                {isTennisPlayer && hasRecords && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-xs text-gold hover:text-gold hover:bg-gold/10"
+                    onClick={() => setShowRecord(true)}
+                  >
+                    <Trophy className="h-3 w-3" />
+                    Record
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-2 text-sm text-muted-foreground">
+                {player.email && (
+                  <a
+                    href={`mailto:${player.email}`}
+                    className="flex items-center gap-1 hover:text-foreground"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{player.email}</span>
+                  </a>
+                )}
+                {player.phone && (
+                  <a
+                    href={`tel:${player.phone}`}
+                    className="flex items-center gap-1 hover:text-foreground"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{player.phone}</span>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="opacity-100">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      onClick={() =>
+                        updatePlayer(player.id, {
+                          rosterRole: isManager ? 'player' : 'manager',
+                        })
+                      }
+                      className="flex items-center gap-2"
+                    >
+                      <UserCog className="h-4 w-4" />
+                      {isManager ? 'Mark as Player' : 'Mark as Manager'}
+                    </DropdownMenuItem>
+
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(player)} className="flex items-center gap-2">
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+
+                    {onDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDelete(player.id)}
+                          className="flex items-center gap-2 text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Remove
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
-            
-            <div className="flex flex-wrap gap-2 pt-1">
-              {player.sports.map((sport) => (
-                <Badge key={sport} variant="secondary" className="font-normal capitalize">
-                  {sport}
-                </Badge>
-              ))}
-            </div>
-            
-            <div className="flex flex-wrap gap-3 pt-2 text-sm text-muted-foreground">
-              {player.email && (
-                <a
-                  href={`mailto:${player.email}`}
-                  className="flex items-center gap-1 hover:text-foreground"
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{player.email}</span>
-                </a>
-              )}
-              {player.phone && (
-                <a
-                  href={`tel:${player.phone}`}
-                  className="flex items-center gap-1 hover:text-foreground"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  <span>{player.phone}</span>
-                </a>
-              )}
-            </div>
           </div>
-          
-          <div className="opacity-100">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={() =>
-                    updatePlayer(player.id, {
-                      rosterRole: isManager ? 'player' : 'manager',
-                    })
-                  }
-                  className="flex items-center gap-2"
-                >
-                  <UserCog className="h-4 w-4" />
-                  {isManager ? 'Mark as Player' : 'Mark as Manager'}
-                </DropdownMenuItem>
+        </CardContent>
+      </Card>
 
-                {onEdit && (
-                  <DropdownMenuItem onClick={() => onEdit(player)} className="flex items-center gap-2">
-                    <Edit className="h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                )}
-
-                {onDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onDelete(player.id)}
-                      className="flex items-center gap-2 text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Remove
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      {isTennisPlayer && (
+        <PlayerRecordModal
+          player={player}
+          open={showRecord}
+          onClose={() => setShowRecord(false)}
+        />
+      )}
+      {isTrackPlayer && (
+        <TrackRecordModal
+          player={player}
+          open={showTrackRecord}
+          onClose={() => setShowTrackRecord(false)}
+        />
+      )}
+    </>
   );
 }
+

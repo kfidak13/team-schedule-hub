@@ -23,6 +23,7 @@ const SPORT_NAMES: Partial<Record<Sport, string>> = {
   wrestling: 'Wrestling',
   swim_dive: 'Swim & Dive',
   basketball: 'Basketball',
+  track_field: 'Track & Field',
   other: 'Other',
 };
 
@@ -49,11 +50,11 @@ export function buildProgramOptions(): ProgramOption[] {
   const sports: Sport[] = [
     'soccer', 'baseball', 'tennis', 'football', 'badminton', 'swim',
     'cross_country', 'volleyball', 'water_polo', 'golf', 'wrestling',
-    'swim_dive', 'basketball',
+    'swim_dive', 'basketball', 'track_field',
   ];
 
   const noGirls = new Set<Sport>(['football']);
-  const noJV = new Set<Sport>(['baseball', 'football', 'swim', 'swim_dive']);
+  const noJV = new Set<Sport>(['baseball', 'football', 'swim', 'swim_dive', 'track_field']);
   const froshOnly = new Set<Sport>(['volleyball', 'basketball']);
   const noJVOrFrosh = new Set<Sport>(['wrestling', 'swim_dive']);
 
