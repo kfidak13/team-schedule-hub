@@ -58,11 +58,13 @@ function normalizeEvent(raw: string): string {
 
 // ── Webb school name variants ──────────────────────────────────────────────────
 
-const WEBB_SCHOOLS = ['THE WEBB SCH', 'THE WEBB SCHOOLS', 'WEBB SCH', 'WEBB', 'WSC'];
+const WEBB_SCHOOLS = ['THE WEBB SCH', 'THE WEBB SCHOOLS', 'WEBB SCH', 'WEBB SCHOOLS', 'WEBB', 'WSC'];
 
 function isWebbSchool(school: string): boolean {
   const up = school.toUpperCase().trim();
-  return WEBB_SCHOOLS.some(w => up.includes(w));
+  // Exact match or contains a Webb variant
+  // Use word-boundary check so e.g. "WEST COVINA" doesn't match "WEBB"
+  return WEBB_SCHOOLS.some(w => up === w || new RegExp('\\b' + w + '\\b').test(up));
 }
 
 // ── Line type detection ────────────────────────────────────────────────────────
@@ -112,15 +114,17 @@ export function parseTrackResults(
     if (HEADER_LINE_RE.test(trimmed)) continue;
     if (SPLIT_LINE_RE.test(line)) continue;
 
-    // Detect event header — Athletic.net format: "Boys 100 Meter Dash Varsity"
-    // Must contain a known event keyword and appear as its own line (no result data after)
-    const evMatch = trimmed.match(EVENT_HEADER_RE);
+    // Detect event header — two formats:
+    // Athletic.net: "Boys 100 Meter Dash Varsity"
+    // CIF/other:    "Event 2  Boys 1600 Meter Run Frosh/Soph RATED"
+    const headerLine = trimmed.replace(/^Event\s+\d+\s+/i, '');
+    const evMatch = headerLine.match(EVENT_HEADER_RE);
     if (evMatch && !RESULT_LINE_RE.test(line) && !RELAY_LINE_RE.test(line)) {
       currentEvent = normalizeEvent(evMatch[0]);
       isRelayEvent = /relay/i.test(trimmed);
-      // Detect gender prefix
-      if (/^boys/i.test(trimmed)) currentEventGender = 'boys';
-      else if (/^girls/i.test(trimmed)) currentEventGender = 'girls';
+      // Detect gender prefix (check after stripping "Event N" prefix)
+      if (/^boys/i.test(headerLine)) currentEventGender = 'boys';
+      else if (/^girls/i.test(headerLine)) currentEventGender = 'girls';
       else currentEventGender = null; // no prefix — don't filter by gender
       continue;
     }
