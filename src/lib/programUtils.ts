@@ -49,8 +49,8 @@ export function levelLabel(level: Level): string {
 export function buildProgramOptions(): ProgramOption[] {
   const sports: Sport[] = [
     'soccer', 'baseball', 'tennis', 'football', 'badminton', 'swim',
-    'cross_country', 'volleyball', 'water_polo', 'golf', 'wrestling',
-    'swim_dive', 'basketball', 'track_field',
+    'cross_country', 'track_field', 'volleyball', 'water_polo', 'golf',
+    'wrestling', 'swim_dive', 'basketball',
   ];
 
   const noGirls = new Set<Sport>(['football']);
