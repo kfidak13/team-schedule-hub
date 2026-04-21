@@ -68,11 +68,12 @@ function parseCells(line: string): string[] {
 }
 
 // Detect a time/distance value
-const TIME_RE = /^(\d{1,2}:)?\d{1,2}(\.\d+)?$|^\d+-\d+(\.\d+)?$/;
+// Handles: 10.85, 48.32, 4:32.15, 10:23.45, 1:02:34.56, 18-04.50 (field)
+const TIME_RE = /^\d{1,2}:\d{2}(\.\d+)?$|^\d{1,2}:\d{2}:\d{2}(\.\d+)?$|^\d+\.\d+$|^\d+-\d+(\.\d+)?$/;
 const PLACE_RE = /^\d+$/;
 
 function isTime(s: string): boolean { return TIME_RE.test(s.trim()); }
-function isPlace(s: string): boolean { return PLACE_RE.test(s.trim()) && parseInt(s) < 100; }
+function isPlace(s: string): boolean { return PLACE_RE.test(s.trim()) && parseInt(s) < 200; }
 
 // Meet header patterns: "Bear Valley Invitational - March 5, 2026"
 const DATE_RE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{4}\b/i;
@@ -162,14 +163,11 @@ export function parseTrackResults(
     athleteName = cells.join(' ').trim();
     if (!athleteName) continue;
 
-    // Only import Webb athletes
-    const isWebb = !schoolToken ||
-      schoolToken.toUpperCase() === 'WEBB' ||
-      schoolToken.toUpperCase() === 'WSC' ||
-      // If no school given, assume it's Webb (single-team paste)
-      schoolToken === '';
-
-    if (!isWebb && schoolToken) continue;
+    // Only import Webb athletes (if school token present and not Webb, skip)
+    if (schoolToken) {
+      const up = schoolToken.toUpperCase();
+      if (up !== 'WEBB' && up !== 'WSC') continue;
+    }
 
     // Match to roster
     const matched = findAthlete(athleteName, existingPlayers);

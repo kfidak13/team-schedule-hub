@@ -25,10 +25,11 @@ export function TrackImportDialog() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'input' | 'preview'>('input');
 
-  const trackPlayers = players.filter(p =>
-    p.sports?.includes('track_field') &&
-    (!currentProgram || p.programKey === `track_field_${currentProgram.gender}_${currentProgram.level}`)
-  );
+  // Use all players in the current program for name matching,
+  // falling back to all players if program isn't set yet
+  const trackPlayers = currentProgram
+    ? players.filter(p => p.programKey === `track_field_${currentProgram.gender}_${currentProgram.level}`)
+    : players;
 
   function handlePreview() {
     if (!rawText.trim()) { toast.error('Paste results text first'); return; }
@@ -39,7 +40,8 @@ export function TrackImportDialog() {
       rawText,
       meetName,
       meetDate,
-      trackPlayers.map(p => ({ id: p.id, name: p.name })),
+      // Pass ALL players for name matching — names may not have track_field sport tag yet
+      players.map(p => ({ id: p.id, name: p.name })),
       trackResults,
     );
     setPreview(result);
@@ -116,11 +118,12 @@ export function TrackImportDialog() {
             <div className="space-y-1">
               <label className="text-sm font-medium">Paste Results</label>
               <p className="text-xs text-muted-foreground">
-                Paste results from Athletic.net, USTA, or any tab/space-separated format with event headers, athlete names, and times.
+                Paste results from Athletic.net or any tab/space-separated format. Include an event name header before each group of results.
+                Format: <span className="font-mono">Place  Name  School  Time  (PR)</span>. School column is optional for Webb-only pastes.
               </p>
               <Textarea
                 className="font-mono text-xs min-h-[240px]"
-                placeholder={`100 Meters\n1  Smith John  WEBB  10.85  PR\n2  Doe Jane  OHS  11.12\n\n400 Meters\n1  Smith John  WEBB  48.32`}
+                placeholder={`100 Meters\n1  John Smith  WEBB  10.85  PR\n2  Jane Doe  OHS  11.12\n\n400 Meters\n1  John Smith  WEBB  48.32\n2  Alex Brown  WEBB  49.15`}
                 value={rawText}
                 onChange={e => setRawText(e.target.value)}
               />
@@ -147,6 +150,17 @@ export function TrackImportDialog() {
               <div className="rounded border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm">
                 <p className="font-medium text-yellow-400 mb-1">Unmatched athletes (will still import):</p>
                 <p className="text-muted-foreground">{preview.unmatched.join(', ')}</p>
+              </div>
+            )}
+
+            {preview.results.length === 0 && (
+              <div className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <p className="font-medium mb-1">No results parsed.</p>
+                <p className="text-xs text-muted-foreground">
+                  Make sure the text has event headers (e.g. "100 Meters", "400 Meters") followed by result rows.
+                  Times must be in format: <span className="font-mono">10.85</span>, <span className="font-mono">48.32</span>, or <span className="font-mono">4:32.15</span>.
+                  If pasting Webb-only results with no school column, the parser will import all rows.
+                </p>
               </div>
             )}
 
