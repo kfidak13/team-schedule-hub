@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export function TrackImportDialog() {
-  const { players, currentProgram } = useTeam();
+  const { players, currentProgram, games, addGame } = useTeam();
   const { addTrackResults, trackResults } = useTrack();
 
   const [open, setOpen] = useState(false);
@@ -54,6 +54,27 @@ export function TrackImportDialog() {
     setLoading(true);
     try {
       await addTrackResults(preview.results);
+
+      // Create a schedule game for this meet if one doesn't exist yet
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const exists = games.some(g =>
+        g.sport === (currentProgram?.sport ?? 'track_field') &&
+        g.gender === (currentProgram?.gender ?? 'boys') &&
+        g.level === (currentProgram?.level ?? 'varsity') &&
+        norm(g.title ?? g.opponent ?? '') === norm(meetName)
+      );
+      if (!exists) {
+        addGame({
+          sport: currentProgram?.sport ?? 'track_field',
+          gender: currentProgram?.gender ?? 'boys',
+          level: currentProgram?.level ?? 'varsity',
+          date: new Date(meetDate + 'T12:00:00'),
+          title: meetName,
+          venue: 'Away',
+          isLeague: false,
+        });
+      }
+
       toast.success(`Imported ${preview.results.length} results`);
       setOpen(false);
       setRawText('');

@@ -8,6 +8,7 @@ interface TrackContextValue {
   deleteTrackResult: (id: string) => Promise<void>;
   getAthleteResults: (athleteId: string) => TrackResult[];
   getAthleteResultsByName: (name: string) => TrackResult[];
+  getMeetResults: (meetName: string) => TrackResult[];
 }
 
 const TrackContext = createContext<TrackContextValue | undefined>(undefined);
@@ -68,6 +69,9 @@ export function TrackProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const getMeetResults = (meetName: string) =>
+    trackResults.filter(r => norm(r.meetName) === norm(meetName));
+
   return (
     <TrackContext.Provider value={{
       trackResults,
@@ -75,6 +79,7 @@ export function TrackProvider({ children }: { children: ReactNode }) {
       deleteTrackResult,
       getAthleteResults,
       getAthleteResultsByName,
+      getMeetResults,
     }}>
       {children}
     </TrackContext.Provider>

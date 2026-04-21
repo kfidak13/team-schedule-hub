@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Game } from '@/types/team';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Clock, MapPin, Trash2, Edit, Trophy } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, Edit, Trophy, BarChart2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useTrack } from '@/context/TrackContext';
+import { TrackMeetResultsModal } from '@/components/track/TrackMeetResultsModal';
 
 interface GameCardProps {
   game: Game;
@@ -13,7 +16,15 @@ interface GameCardProps {
 }
 
 export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
+  const { getMeetResults } = useTrack();
+  const [showResults, setShowResults] = useState(false);
+
+  const isTrack = game.sport === 'track_field' || game.sport === 'cross_country';
+  const meetTitle = game.title ?? game.opponent ?? '';
+  const hasMeetResults = isTrack && meetTitle ? getMeetResults(meetTitle).length > 0 : false;
+
   return (
+    <>
     <Card className={cn(
       'group transition-shadow hover:shadow-md overflow-hidden',
       game.result?.won === true && 'border-l-[3px] border-l-gold',
@@ -85,6 +96,16 @@ export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
           
           {/* Actions */}
           <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {hasMeetResults && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowResults(true)}
+                title="View meet results"
+              >
+                <BarChart2 className="h-4 w-4 text-gold" />
+              </Button>
+            )}
             {onEdit && (
               <Button variant="ghost" size="icon" onClick={() => onEdit(game)}>
                 <Edit className="h-4 w-4" />
@@ -104,5 +125,14 @@ export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
         </div>
       </CardContent>
     </Card>
+
+    {hasMeetResults && (
+      <TrackMeetResultsModal
+        meetName={meetTitle}
+        open={showResults}
+        onClose={() => setShowResults(false)}
+      />
+    )}
+    </>
   );
 }
