@@ -67,10 +67,12 @@ export function TrackImportDialog() {
     }
   }
 
-  function handleClose() {
-    setOpen(false);
-    setStep('input');
-    setPreview(null);
+  function handleOpenChange(val: boolean) {
+    if (!val) {
+      setStep('input');
+      setPreview(null);
+    }
+    setOpen(val);
   }
 
   // Group preview results by event
@@ -81,9 +83,9 @@ export function TrackImportDialog() {
   }, {}) ?? {};
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <Button variant="outline" size="sm" className="gap-2">
           <Upload className="h-4 w-4" />
           Import Results
         </Button>
@@ -130,7 +132,7 @@ export function TrackImportDialog() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+              <Button variant="ghost" onClick={() => handleOpenChange(false)}>Cancel</Button>
               <Button onClick={handlePreview}>Preview Parsed Results</Button>
             </div>
           </div>

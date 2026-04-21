@@ -7,182 +7,161 @@ export interface TrackParseResult {
   meetDate: string;
 }
 
-// Convert a time string to milliseconds for comparison/PR detection
-// Handles: "4:32.15" (m:ss.cs), "55.23" (ss.cs), "1:02:15.00" (h:mm:ss.cs)
-// Field events (distances like "18-04.50") return 0 — sort by raw string
+// ── Time conversion ────────────────────────────────────────────────────────────
+
+// Handles: "11.11", "53.93", "2:08.69", "4:42.79", "10:32.71"
+// Field events (feet-inches like "6-02.00", "113-02") return 0
 export function timeToMs(time: string): number {
   const t = time.trim();
-  // Field event format: feet-inches e.g. "18-04.50" or "42-06" → not a time, return 0
-  if (/^\d+-\d+/.test(t)) return 0;
-
+  if (/^\d+-\d+/.test(t)) return 0; // field event distance
   const parts = t.split(':');
   try {
-    if (parts.length === 1) {
-      // ss.cs
-      return Math.round(parseFloat(parts[0]) * 1000);
-    } else if (parts.length === 2) {
-      // m:ss.cs
-      return Math.round((parseInt(parts[0]) * 60 + parseFloat(parts[1])) * 1000);
-    } else if (parts.length === 3) {
-      // h:mm:ss.cs
-      return Math.round((parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2])) * 1000);
-    }
+    if (parts.length === 1) return Math.round(parseFloat(parts[0]) * 1000);
+    if (parts.length === 2) return Math.round((parseInt(parts[0]) * 60 + parseFloat(parts[1])) * 1000);
+    if (parts.length === 3) return Math.round((parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2])) * 1000);
   } catch { return 0; }
   return 0;
 }
 
-// Returns true if newTime is faster (lower ms) or farther (higher raw for field)
-export function isFasterThan(newTime: string, prTime: string): boolean {
-  const newMs = timeToMs(newTime);
-  const prMs = timeToMs(prTime);
-  // Field events: higher value = better — but we can't compare strings reliably here
-  // For now, lower ms = faster (track). Field events return 0 for both, so no PR auto-detection
-  if (newMs === 0 && prMs === 0) return false;
-  return newMs < prMs;
+// ── Event header detection ─────────────────────────────────────────────────────
+
+// Matches Athletic.net format: "Boys 100 Meter Dash Varsity", "Boys High Jump Varsity", etc.
+// Also plain: "100 Meters", "High Jump"
+const EVENT_HEADER_RE = /(?:boys|girls)?\s*([\d.]+\s*(?:x\s*[\d.]+\s*)?(?:meter|mile|yard)[s]?\s*(?:dash|run|hurdles?|relay)?|high jump|long jump|triple jump|pole vault|shot put|discus|javelin|hammer|pentathlon|decathlon)/i;
+
+function normalizeEvent(raw: string): string {
+  const r = raw.trim();
+  if (/100\s*m.*dash|^100\s*m/i.test(r)) return '100m';
+  if (/200\s*m.*dash|^200\s*m/i.test(r)) return '200m';
+  if (/400\s*m.*dash|^400\s*m/i.test(r)) return '400m';
+  if (/800\s*m.*run|^800\s*m/i.test(r)) return '800m';
+  if (/1600\s*m.*run|^1600\s*m/i.test(r)) return '1600m';
+  if (/3200\s*m.*run|^3200\s*m/i.test(r)) return '3200m';
+  if (/5000\s*m/i.test(r)) return '5000m';
+  if (/110\s*m.*hurdl/i.test(r)) return '110m Hurdles';
+  if (/100\s*m.*hurdl/i.test(r)) return '100m Hurdles';
+  if (/300\s*m.*hurdl/i.test(r)) return '300m Hurdles';
+  if (/400\s*m.*hurdl/i.test(r)) return '400m Hurdles';
+  if (/4\s*x\s*100/i.test(r)) return '4x100m Relay';
+  if (/4\s*x\s*400/i.test(r)) return '4x400m Relay';
+  if (/4\s*x\s*800/i.test(r)) return '4x800m Relay';
+  if (/high\s*jump/i.test(r)) return 'High Jump';
+  if (/long\s*jump/i.test(r)) return 'Long Jump';
+  if (/triple\s*jump/i.test(r)) return 'Triple Jump';
+  if (/pole\s*vault/i.test(r)) return 'Pole Vault';
+  if (/shot\s*put/i.test(r)) return 'Shot Put';
+  if (/discus/i.test(r)) return 'Discus';
+  if (/javelin/i.test(r)) return 'Javelin';
+  if (/hammer/i.test(r)) return 'Hammer';
+  return r;
 }
 
-// ── Line classifiers ──────────────────────────────────────────────────────────
+// ── Webb school name variants ──────────────────────────────────────────────────
 
-// Common track events to detect event header lines
-const TRACK_EVENTS = [
-  '100 Meters', '200 Meters', '400 Meters', '800 Meters',
-  '1600 Meters', '3200 Meters', '110 Hurdles', '300 Hurdles',
-  '400 Hurdles', '100 Hurdles', '4x100', '4x400', '4x800',
-  'High Jump', 'Long Jump', 'Triple Jump', 'Pole Vault',
-  'Shot Put', 'Discus', 'Javelin', 'Hammer', 'Pentathlon', 'Decathlon',
-  'Mile', '2 Mile', '5000', '10000', '3000 Steeplechase',
-];
+const WEBB_SCHOOLS = ['THE WEBB SCH', 'THE WEBB SCHOOLS', 'WEBB SCH', 'WEBB', 'WSC'];
 
-const EVENT_RE = new RegExp(
-  '(' + TRACK_EVENTS.map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')',
-  'i'
-);
-
-// Time/distance result line: "1  John Smith  Webb  4:32.15  PR" or "3  Jane Doe  OHS  55.23"
-// Also handles just "John Smith  4:32.15" minimal format
-const RESULT_LINE_RE = /^(\d+)?\s+(.+?)\s{2,}(.+?)\s{2,}([\d:.\-]+)\s*(PR)?/i;
-
-// Simpler: split by 2+ spaces
-function parseCells(line: string): string[] {
-  return line.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+function isWebbSchool(school: string): boolean {
+  const up = school.toUpperCase().trim();
+  return WEBB_SCHOOLS.some(w => up.includes(w));
 }
 
-// Detect a time/distance value
-// Handles: 10.85, 48.32, 4:32.15, 10:23.45, 1:02:34.56, 18-04.50 (field)
-const TIME_RE = /^\d{1,2}:\d{2}(\.\d+)?$|^\d{1,2}:\d{2}:\d{2}(\.\d+)?$|^\d+\.\d+$|^\d+-\d+(\.\d+)?$/;
-const PLACE_RE = /^\d+$/;
+// ── Line type detection ────────────────────────────────────────────────────────
 
-function isTime(s: string): boolean { return TIME_RE.test(s.trim()); }
-function isPlace(s: string): boolean { return PLACE_RE.test(s.trim()) && parseInt(s) < 200; }
+// Split-lap line: "    1:06.037 (1:06.037)     2:08.681 (1:02.644)"
+const SPLIT_LINE_RE = /^\s*\d+:\d+\.\d+\s*\(\d+:\d+\.\d+\)/;
 
-// Meet header patterns: "Bear Valley Invitational - March 5, 2026"
-const DATE_RE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{4}\b/i;
-const ISO_DATE_RE = /\b(\d{4})-(\d{2})-(\d{2})\b/;
+// Separator line: "=====..." or "-----..."
+const SEP_LINE_RE = /^[=\-]{5,}/;
 
-function extractDate(text: string): string | null {
-  const iso = text.match(ISO_DATE_RE);
-  if (iso) return iso[0];
-  const m = text.match(DATE_RE);
-  if (!m) return null;
-  return new Date(m[0]).toISOString().slice(0, 10);
-}
+// Column header line
+const HEADER_LINE_RE = /^\s*Name\s+Year\s+School/i;
 
-// ── Main parser ───────────────────────────────────────────────────────────────
+// Place + result line (Athletic.net individual):
+// "  1 Mozia, Aaden              12 THE WEBB SCH             11.11  -0.2  1  10"
+// "  1 Efuetngu, Jeremy          12 THE WEBB SCH          45-08.50   1  10"
+// " -- Grayson, Kaj              11 THE WEBB SCH               DNF  -0.2  1"
+const RESULT_LINE_RE = /^\s*(\d+|--)\s+([A-Za-z][^,]+,\s*[A-Za-z][^\d]*?)\s+(\d{1,2})\s+((?:THE\s+)?[A-Z][A-Z\s]+?)\s{2,}([\d:.x\-]+|DNF|FOUL|NH|NWI|DQ)\s/;
+
+// Relay result line: "  1 THE WEBB SCHOOLS (SS)  'A'    45.68   1  10"
+const RELAY_LINE_RE = /^\s*(\d+|--)\s+((?:THE\s+)?[A-Z][A-Z\s,\-()'"]+?)\s{2,}(x?[\d:.]+)\s/;
+
+// ── Main parser ────────────────────────────────────────────────────────────────
 
 export function parseTrackResults(
   rawText: string,
   meetName: string,
   meetDate: string,
   existingPlayers: { id: string; name: string }[],
-  existingResults: TrackResult[],  // to detect PRs
+  existingResults: TrackResult[],
 ): TrackParseResult {
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
-
-  // Try to extract date from text if not provided
-  if (!meetDate) {
-    for (const line of lines) {
-      const d = extractDate(line);
-      if (d) { meetDate = d; break; }
-    }
-  }
+  const lines = rawText.split('\n');
 
   let currentEvent = '';
+  let isRelayEvent = false;
   const results: Omit<TrackResult, 'id'>[] = [];
   const unmatchedNames = new Set<string>();
 
-  for (const line of lines) {
-    // Skip lines that are clearly headers/footers
-    if (/^(place|athlete|team|time|mark|result|finals|prelims|heat)/i.test(line)) continue;
-    if (line.length < 3) continue;
+  for (const rawLine of lines) {
+    const line = rawLine;
+    const trimmed = line.trim();
 
-    // Detect event header
-    const evMatch = line.match(EVENT_RE);
-    if (evMatch && line.length < 60) {
-      currentEvent = normalizeEvent(evMatch[1]);
+    if (!trimmed) continue;
+    if (SEP_LINE_RE.test(trimmed)) continue;
+    if (HEADER_LINE_RE.test(trimmed)) continue;
+    if (SPLIT_LINE_RE.test(line)) continue;
+
+    // Detect event header — Athletic.net format: "Boys 100 Meter Dash Varsity"
+    // Must contain a known event keyword and appear as its own line (no result data after)
+    const evMatch = trimmed.match(EVENT_HEADER_RE);
+    if (evMatch && !RESULT_LINE_RE.test(line) && !RELAY_LINE_RE.test(line)) {
+      currentEvent = normalizeEvent(evMatch[0]);
+      isRelayEvent = /relay/i.test(trimmed);
       continue;
     }
 
     if (!currentEvent) continue;
 
-    // Parse result row by splitting on 2+ spaces
-    const cells = parseCells(line);
-    if (cells.length < 2) continue;
+    // Skip relay events — no individual athletes
+    if (isRelayEvent) continue;
 
-    // Try to find: [place?] [name] [school?] [time] [PR?]
-    let place: number | undefined;
-    let athleteName = '';
-    let time = '';
-    let schoolToken = '';
-    let isPRFlag = false;
+    // Try to parse individual result line
+    // Athletic.net fixed-width format:
+    // [place] Lastname, Firstname    [year] [SCHOOL NAME]    [finals]  [wind?]  [heat?]  [points?]  [tiebreak?]
+    const m = line.match(RESULT_LINE_RE);
+    if (!m) continue;
 
-    // Check last cell for PR marker
-    if (/^pr$/i.test(cells[cells.length - 1])) {
-      isPRFlag = true;
-      cells.pop();
-    }
+    const placeStr = m[1].trim();
+    const namePart = m[2].trim(); // "Lastname, Firstname"
+    // m[3] = year, m[4] = school, m[5] = result
+    const school = m[4].trim();
+    const rawResult = m[5].trim();
 
-    // Check first cell for place number
-    if (cells.length >= 1 && isPlace(cells[0])) {
-      place = parseInt(cells.shift()!);
-    }
+    // Skip DNF, FOUL, NH, DQ
+    if (/^(DNF|FOUL|NH|DQ|NWI)$/i.test(rawResult)) continue;
 
-    // Last remaining cell should be the time
-    if (cells.length >= 1 && isTime(cells[cells.length - 1])) {
-      time = cells.pop()!;
-    } else {
-      // Can't find a time — skip
-      continue;
-    }
+    // Only import Webb athletes
+    if (!isWebbSchool(school)) continue;
 
-    // Second to last might be school abbreviation (short, all caps)
-    if (cells.length >= 2 && /^[A-Z0-9]{1,8}$/.test(cells[cells.length - 1])) {
-      schoolToken = cells.pop()!;
-    }
+    const place = placeStr === '--' ? undefined : parseInt(placeStr);
 
-    // Remaining cells = athlete name
-    athleteName = cells.join(' ').trim();
-    if (!athleteName) continue;
+    // Convert "Lastname, Firstname" → "Firstname Lastname"
+    const athleteName = convertName(namePart);
 
-    // Only import Webb athletes (if school token present and not Webb, skip)
-    if (schoolToken) {
-      const up = schoolToken.toUpperCase();
-      if (up !== 'WEBB' && up !== 'WSC') continue;
-    }
+    // The finals value — strip leading 'x' (exhibition)
+    const time = rawResult.replace(/^x/i, '');
 
-    // Match to roster
     const matched = findAthlete(athleteName, existingPlayers);
     const athleteId = matched?.id ?? '';
     const resolvedName = matched?.name ?? athleteName;
     if (!matched) unmatchedNames.add(athleteName);
 
-    // PR detection: is this better than their existing best for this event?
     const ms = timeToMs(time);
     const existingBest = getPersonalBest(resolvedName, athleteId, currentEvent, existingResults);
-    let isPR = isPRFlag;
-    if (!isPR && ms > 0 && existingBest) {
-      isPR = ms < existingBest;
-    } else if (!isPR && ms > 0 && !existingBest) {
+    let isPR = false;
+    if (ms > 0 && existingBest === null) {
       isPR = true; // First time = automatic PR
+    } else if (ms > 0 && existingBest !== null) {
+      isPR = ms < existingBest;
     }
 
     results.push({
@@ -199,45 +178,23 @@ export function parseTrackResults(
     });
   }
 
-  return {
-    results,
-    unmatched: [...unmatchedNames],
-    meetName,
-    meetDate,
-  };
+  return { results, unmatched: [...unmatchedNames], meetName, meetDate };
 }
 
-function normalizeEvent(raw: string): string {
-  const lower = raw.trim().toLowerCase();
-  // Normalize common variations
-  if (/^100\s*m/i.test(raw)) return '100m';
-  if (/^200\s*m/i.test(raw)) return '200m';
-  if (/^400\s*m/i.test(raw)) return '400m';
-  if (/^800\s*m/i.test(raw)) return '800m';
-  if (/^1600\s*m|^mile/i.test(raw)) return '1600m';
-  if (/^3200\s*m|^2\s*mile/i.test(raw)) return '3200m';
-  if (/110.*hurdle/i.test(raw)) return '110m Hurdles';
-  if (/300.*hurdle/i.test(raw)) return '300m Hurdles';
-  if (/400.*hurdle/i.test(raw)) return '400m Hurdles';
-  if (/4.?x.?100/i.test(raw)) return '4x100m Relay';
-  if (/4.?x.?400/i.test(raw)) return '4x400m Relay';
-  if (/4.?x.?800/i.test(raw)) return '4x800m Relay';
-  if (/high\s*jump/i.test(raw)) return 'High Jump';
-  if (/long\s*jump/i.test(raw)) return 'Long Jump';
-  if (/triple\s*jump/i.test(raw)) return 'Triple Jump';
-  if (/pole\s*vault/i.test(raw)) return 'Pole Vault';
-  if (/shot\s*put/i.test(raw)) return 'Shot Put';
-  if (/discus/i.test(raw)) return 'Discus';
-  if (/javelin/i.test(raw)) return 'Javelin';
+// "Mozia, Aaden" → "Aaden Mozia"
+function convertName(raw: string): string {
+  const parts = raw.split(',');
+  if (parts.length >= 2) {
+    return `${parts[1].trim()} ${parts[0].trim()}`;
+  }
   return raw.trim();
-  void lower;
 }
 
 function getPersonalBest(
   name: string,
   id: string,
   event: string,
-  existing: TrackResult[]
+  existing: TrackResult[],
 ): number | null {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
   const matches = existing.filter(r =>
@@ -251,23 +208,20 @@ function getPersonalBest(
 
 function findAthlete(
   name: string,
-  players: { id: string; name: string }[]
+  players: { id: string; name: string }[],
 ): { id: string; name: string } | undefined {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
-  const sortedWords = (s: string) => s.toLowerCase().split(/\s+/).map(norm).sort().join('');
-  const nameSorted = sortedWords(name);
+  const sortWords = (s: string) => s.toLowerCase().split(/\s+/).map(norm).sort().join('');
+  const ns = sortWords(name);
 
-  let found = players.find(p => norm(p.name) === norm(name));
-  if (found) return found;
-
-  found = players.find(p => sortedWords(p.name) === nameSorted);
-  if (found) return found;
-
-  // Last name match fallback
-  const lastName = norm(name.split(/\s+/)[0]);
-  found = players.find(p => {
-    const parts = p.name.split(/\s+/);
-    return norm(parts[parts.length - 1]) === lastName || norm(parts[0]) === lastName;
-  });
-  return found;
+  return (
+    players.find(p => norm(p.name) === norm(name)) ??
+    players.find(p => sortWords(p.name) === ns) ??
+    players.find(p => {
+      const parts = p.name.split(/\s+/);
+      const last = norm(parts[parts.length - 1]);
+      const inputLast = norm(name.split(/\s+/)[name.split(/\s+/).length - 1]);
+      return last === inputLast;
+    })
+  );
 }
