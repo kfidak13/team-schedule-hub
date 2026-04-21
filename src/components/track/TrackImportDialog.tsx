@@ -43,6 +43,7 @@ export function TrackImportDialog() {
       // Pass ALL players for name matching — names may not have track_field sport tag yet
       players.map(p => ({ id: p.id, name: p.name })),
       trackResults,
+      currentProgram?.gender,
     );
     setPreview(result);
     setStep('preview');

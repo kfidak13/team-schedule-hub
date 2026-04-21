@@ -93,11 +93,13 @@ export function parseTrackResults(
   meetDate: string,
   existingPlayers: { id: string; name: string }[],
   existingResults: TrackResult[],
+  gender?: 'boys' | 'girls',  // if provided, only import events matching this gender
 ): TrackParseResult {
   const lines = rawText.split('\n');
 
   let currentEvent = '';
   let isRelayEvent = false;
+  let currentEventGender: 'boys' | 'girls' | null = null;
   const results: Omit<TrackResult, 'id'>[] = [];
   const unmatchedNames = new Set<string>();
 
@@ -116,6 +118,10 @@ export function parseTrackResults(
     if (evMatch && !RESULT_LINE_RE.test(line) && !RELAY_LINE_RE.test(line)) {
       currentEvent = normalizeEvent(evMatch[0]);
       isRelayEvent = /relay/i.test(trimmed);
+      // Detect gender prefix
+      if (/^boys/i.test(trimmed)) currentEventGender = 'boys';
+      else if (/^girls/i.test(trimmed)) currentEventGender = 'girls';
+      else currentEventGender = null; // no prefix — don't filter by gender
       continue;
     }
 
@@ -123,6 +129,9 @@ export function parseTrackResults(
 
     // Skip relay events — no individual athletes
     if (isRelayEvent) continue;
+
+    // Skip events that don't match the requested gender
+    if (gender && currentEventGender && currentEventGender !== gender) continue;
 
     // Try to parse individual result line
     // Athletic.net fixed-width format:
