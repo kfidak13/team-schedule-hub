@@ -78,14 +78,87 @@ const SEP_LINE_RE = /^[=\-]{5,}/;
 // Column header line
 const HEADER_LINE_RE = /^\s*Name\s+Year\s+School/i;
 
-// Place + result line (Athletic.net individual):
-// "  1 Mozia, Aaden              12 THE WEBB SCH             11.11  -0.2  1  10"
-// "  1 Efuetngu, Jeremy          12 THE WEBB SCH          45-08.50   1  10"
-// " -- Grayson, Kaj              11 THE WEBB SCH               DNF  -0.2  1"
-const RESULT_LINE_RE = /^\s*(\d+|--)\s+([A-Za-z][^,]+,\s*[A-Za-z][^\d]*?)\s+(\d{1,2})\s+((?:THE\s+)?[A-Z][A-Z\s]+?)\s{2,}([\d:.x\-]+|DNF|FOUL|NH|NWI|DQ)\s/;
+// A valid time/distance result token
+// Handles: 11.11, 53.93, 2:08.69, 4:42.79, 10:32.71, 6-02.00, 113-02, 45-08.50
+const FINALS_RE = /^x?(\d{1,3}:\d{2}(:\d{2})?(\.\d+)?|\d+\.\d+|\d+-\d+(\.\d+)?)$/i;
 
-// Relay result line: "  1 THE WEBB SCHOOLS (SS)  'A'    45.68   1  10"
-const RELAY_LINE_RE = /^\s*(\d+|--)\s+((?:THE\s+)?[A-Z][A-Z\s,\-()'"]+?)\s{2,}(x?[\d:.]+)\s/;
+// A skip-worthy result token
+const SKIP_RESULT_RE = /^(DNF|FOUL|NH|NWI|DQ|SCR)$/i;
+
+// A year-in-school token (grade): 1-digit or 2-digit number 7-12
+const YEAR_RE = /^(?:[789]|1[0-2])$/;
+
+// Wind token: "-0.2", "+0.0", "NWI"
+const WIND_RE = /^[+-]\d+\.\d+$|^NWI$/i;
+
+// Relay school line: no comma in name portion, school is an org name
+const RELAY_LINE_RE = /^\s*(\d+|--)\s+[A-Z].+?\s{2,}(x?[\d:.]+)\s/;
+
+// ── Result line parser (token-based, format-agnostic) ─────────────────────────
+// Handles Athletic.net and CIF fixed-width formats.
+// Layout: [place|--] Lastname, Firstname  [year]  [School Name]  [finals]  [wind?] [heat?] [pts?]
+function parseResultLine(line: string): {
+  place: number | undefined;
+  namePart: string;
+  school: string;
+  result: string;
+} | null {
+  const trimmed = line.trim();
+
+  // Must start with a place number or '--'
+  const placeMatch = trimmed.match(/^(\d+|--)\s+/);
+  if (!placeMatch) return null;
+
+  const place = placeMatch[1] === '--' ? undefined : parseInt(placeMatch[1]);
+  const rest = trimmed.slice(placeMatch[0].length);
+
+  // Must have a comma (Lastname, Firstname format)
+  if (!rest.includes(',')) return null;
+
+  // Split by 2+ spaces to get major columns
+  const cols = rest.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+  if (cols.length < 2) return null;
+
+  // Find the finals token — scan from the end, it's the first time/distance we find
+  let finalsIdx = -1;
+  for (let i = cols.length - 1; i >= 1; i--) {
+    // Skip pure numbers (heat, points), wind tokens, tiebreak times in parens
+    const c = cols[i];
+    if (/^\d{1,2}$/.test(c)) continue;       // heat / points
+    if (WIND_RE.test(c)) continue;            // wind
+    if (/^\d+:\d+\.\d+$/.test(c) && i === cols.length - 1) continue; // trailing split
+    if (SKIP_RESULT_RE.test(c)) return null;  // DNF etc — skip
+    if (FINALS_RE.test(c)) { finalsIdx = i; break; }
+  }
+  if (finalsIdx < 0) return null;
+
+  const result = cols[finalsIdx].replace(/^x/i, ''); // strip exhibition 'x'
+
+  // Everything before finalsIdx is [name+year, school] or just [name+year+school]
+  // The name col always starts with the place remainder and contains a comma
+  // Strategy: first col is always "Lastname, Firstname  Year" — extract year from end of col[0]
+  const nameCol = cols[0];
+  const yearMatch = nameCol.match(/\s+(\d{1,2})$/);
+  let namePart = nameCol;
+  let school = '';
+
+  if (yearMatch && YEAR_RE.test(yearMatch[1])) {
+    namePart = nameCol.slice(0, nameCol.length - yearMatch[0].length).trim();
+    // School is col[1] up to finalsIdx-1 joined
+    school = cols.slice(1, finalsIdx).join(' ').trim();
+  } else {
+    // Year might be in col[1], school in col[2..finalsIdx-1]
+    if (finalsIdx >= 2 && YEAR_RE.test(cols[1])) {
+      school = cols.slice(2, finalsIdx).join(' ').trim();
+    } else {
+      school = cols.slice(1, finalsIdx).join(' ').trim();
+    }
+  }
+
+  if (!namePart) return null;
+
+  return { place, namePart, school, result };
+}
 
 // ── Main parser ────────────────────────────────────────────────────────────────
 
@@ -119,7 +192,7 @@ export function parseTrackResults(
     // CIF/other:    "Event 2  Boys 1600 Meter Run Frosh/Soph RATED"
     const headerLine = trimmed.replace(/^Event\s+\d+\s+/i, '');
     const evMatch = headerLine.match(EVENT_HEADER_RE);
-    if (evMatch && !RESULT_LINE_RE.test(line) && !RELAY_LINE_RE.test(line)) {
+    if (evMatch && !parseResultLine(line) && !RELAY_LINE_RE.test(line)) {
       currentEvent = normalizeEvent(evMatch[0]);
       isRelayEvent = /relay/i.test(trimmed);
       // Detect gender prefix (check after stripping "Event N" prefix)
@@ -137,31 +210,17 @@ export function parseTrackResults(
     // Skip events that don't match the requested gender
     if (gender && currentEventGender && currentEventGender !== gender) continue;
 
-    // Try to parse individual result line
-    // Athletic.net fixed-width format:
-    // [place] Lastname, Firstname    [year] [SCHOOL NAME]    [finals]  [wind?]  [heat?]  [points?]  [tiebreak?]
-    const m = line.match(RESULT_LINE_RE);
-    if (!m) continue;
+    // Try to parse individual result line (format-agnostic token approach)
+    const parsed = parseResultLine(line);
+    if (!parsed) continue;
 
-    const placeStr = m[1].trim();
-    const namePart = m[2].trim(); // "Lastname, Firstname"
-    // m[3] = year, m[4] = school, m[5] = result
-    const school = m[4].trim();
-    const rawResult = m[5].trim();
-
-    // Skip DNF, FOUL, NH, DQ
-    if (/^(DNF|FOUL|NH|DQ|NWI)$/i.test(rawResult)) continue;
+    const { place, namePart, school, result: time } = parsed;
 
     // Only import Webb athletes
     if (!isWebbSchool(school)) continue;
 
-    const place = placeStr === '--' ? undefined : parseInt(placeStr);
-
     // Convert "Lastname, Firstname" → "Firstname Lastname"
     const athleteName = convertName(namePart);
-
-    // The finals value — strip leading 'x' (exhibition)
-    const time = rawResult.replace(/^x/i, '');
 
     const matched = findAthlete(athleteName, existingPlayers);
     const athleteId = matched?.id ?? '';
