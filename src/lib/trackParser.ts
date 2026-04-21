@@ -134,24 +134,33 @@ function parseResultLine(line: string): {
 
   const result = cols[finalsIdx].replace(/^x/i, ''); // strip exhibition 'x'
 
-  // Everything before finalsIdx is [name+year, school] or just [name+year+school]
-  // The name col always starts with the place remainder and contains a comma
-  // Strategy: first col is always "Lastname, Firstname  Year" — extract year from end of col[0]
-  const nameCol = cols[0];
-  const yearMatch = nameCol.match(/\s+(\d{1,2})$/);
-  let namePart = nameCol;
+  // Reconstruct the full middle string (everything between place and finals)
+  // e.g. "Mozia, Aaden              12 THE WEBB SCH" (Athletic.net, single-space separated)
+  // e.g. "Barrantes, Matthew              9 Webb" (CIF, 2+ space separated into cols)
+  const middleCols = cols.slice(0, finalsIdx);
+  const middle = middleCols.join('  '); // rejoin with 2 spaces to preserve structure
+
+  // The year (grade 7-12) separates the name from the school.
+  // Name always contains a comma (Lastname, Firstname), so require comma before the year.
+  // Use greedy match so we get the full name before the last year-like token.
+  const yearSplitMatch = middle.match(/^(.+,\s*[^,\d]+?)\s+(\d{1,2})\s+(.+)$/);
+
+  let namePart = '';
   let school = '';
 
-  if (yearMatch && YEAR_RE.test(yearMatch[1])) {
-    namePart = nameCol.slice(0, nameCol.length - yearMatch[0].length).trim();
-    // School is col[1] up to finalsIdx-1 joined
-    school = cols.slice(1, finalsIdx).join(' ').trim();
+  if (yearSplitMatch && YEAR_RE.test(yearSplitMatch[2])) {
+    namePart = yearSplitMatch[1].trim();
+    school = yearSplitMatch[3].trim();
   } else {
-    // Year might be in col[1], school in col[2..finalsIdx-1]
-    if (finalsIdx >= 2 && YEAR_RE.test(cols[1])) {
-      school = cols.slice(2, finalsIdx).join(' ').trim();
+    // No year found — try to match just name + school with no year
+    // Fall back: treat everything before last 2+ space gap as name
+    const noYearMatch = middle.match(/^(.+?)\s{2,}(.+)$/);
+    if (noYearMatch) {
+      namePart = noYearMatch[1].trim();
+      school = noYearMatch[2].trim();
     } else {
-      school = cols.slice(1, finalsIdx).join(' ').trim();
+      namePart = middle.trim();
+      school = '';
     }
   }
 
