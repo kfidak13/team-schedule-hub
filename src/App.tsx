@@ -9,6 +9,7 @@ import { TennisProvider } from "./context/TennisContext";
 import { TrackProvider } from "./context/TrackContext";
 import { ChatProvider } from './context/ChatContext';
 import Chat from './pages/Chat';
+import { SeasonGate } from './components/auth/SeasonGate';
 import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -31,6 +32,7 @@ const App = () => (
         <AuthProvider>
           <Toaster />
           <Sonner />
+          <SeasonGate />
           <BrowserRouter>
             <AppLayout>
               <Routes>

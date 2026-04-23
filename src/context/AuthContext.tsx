@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { getCurrentSeason } from '@/lib/season';
+import type { SeasonProfile } from '@/components/auth/SeasonLoginModal';
 import type { Program } from '@/types/team';
 
 // ── Role credentials — change PINs here ──────────────────────────────────────
@@ -30,6 +32,10 @@ interface AuthContextType {
   login: (pin: string) => AppRole | false;
   loginAsStudent: (name: string) => void;
   logout: () => void;
+  // Season gate
+  seasonProfile: SeasonProfile | null;
+  setSeasonProfile: (p: SeasonProfile) => void;
+  needsSeasonLogin: boolean;
 }
 
 const DEFAULT_USER: AuthUser = { role: 'viewer', displayName: 'Guest' };
@@ -50,8 +56,20 @@ function saveUser(u: AuthUser) {
   localStorage.setItem('auth_user', JSON.stringify(u));
 }
 
+function loadSeasonProfile(): SeasonProfile | null {
+  try {
+    const s = localStorage.getItem('season_profile');
+    if (!s) return null;
+    const p: SeasonProfile = JSON.parse(s);
+    // Invalidate if season has changed
+    if (p.seasonKey !== getCurrentSeason().key) return null;
+    return p;
+  } catch { return null; }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser>(loadUser);
+  const [seasonProfile, setSeasonProfileState] = useState<SeasonProfile | null>(loadSeasonProfile);
 
   const [primaryProgram, setPrimaryProgramState] = useState<Program | null>(() => {
     const saved = localStorage.getItem('primary_program');
@@ -89,6 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_user');
   };
 
+  const setSeasonProfile = (p: SeasonProfile) => {
+    setSeasonProfileState(p);
+    localStorage.setItem('season_profile', JSON.stringify(p));
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -102,6 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       loginAsStudent,
       logout,
+      seasonProfile,
+      setSeasonProfile,
+      needsSeasonLogin: seasonProfile === null,
     }}>
       {children}
     </AuthContext.Provider>
