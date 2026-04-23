@@ -7,6 +7,8 @@ import { TeamProvider } from "./context/TeamContext";
 import { AuthProvider } from "./context/AuthContext";
 import { TennisProvider } from "./context/TennisContext";
 import { TrackProvider } from "./context/TrackContext";
+import { ChatProvider } from './context/ChatContext';
+import Chat from './pages/Chat';
 import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -25,6 +27,7 @@ const App = () => (
       <TeamProvider>
         <TennisProvider>
         <TrackProvider>
+        <ChatProvider>
         <AuthProvider>
           <Toaster />
           <Sonner />
@@ -56,11 +59,15 @@ const App = () => (
                 <Route path="/stats/team" element={<TeamStats />} />
                 <Route path="/stats/games" element={<TeamStats />} />
 
+                {/* Chat & Announcements */}
+                <Route path="/chat" element={<Chat />} />
+
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>
           </BrowserRouter>
         </AuthProvider>
+        </ChatProvider>
         </TrackProvider>
         </TennisProvider>
       </TeamProvider>

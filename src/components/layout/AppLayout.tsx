@@ -9,7 +9,7 @@ import { Footer } from './Footer';
 import { PageTransition } from './PageTransition';
 import { MobileLayout } from './MobileLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Calendar, Users, LayoutDashboard, BarChart3, Trophy, Upload, List, UserCircle, Shield, Gamepad2, Menu, ChevronDown, Layers, ShieldCheck, Home } from 'lucide-react';
+import { Calendar, Users, LayoutDashboard, BarChart3, Trophy, Upload, List, UserCircle, Shield, Gamepad2, Menu, ChevronDown, Layers, ShieldCheck, Home, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -220,6 +220,16 @@ export function AppLayout({ children }: AppLayoutProps) {
             >
               Dashboard
             </Link>
+            <Link
+              to="/chat"
+              className={cn(
+                'rounded-md px-3 py-2 text-sm font-medium transition-all duration-300 flex items-center gap-1.5',
+                location.pathname.startsWith('/chat') ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-white/70 hover:text-white'
+              )}
+            >
+              <MessageSquare className="inline h-4 w-4" />
+              Chat
+            </Link>
 
             {navSections
               .filter((s) => s.children)
@@ -271,6 +281,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Link to="/dashboard" className="flex items-center gap-2">
                     <LayoutDashboard className="h-4 w-4" />
                     Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/chat" className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Chat
                   </Link>
                 </DropdownMenuItem>
                 {isAdmin && (
