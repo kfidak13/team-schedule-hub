@@ -9,7 +9,7 @@ import { Footer } from './Footer';
 import { cn } from '@/lib/utils';
 import {
   Home, LayoutDashboard, Calendar, Users, BarChart3,
-  ChevronDown, ChevronRight, X, ShieldCheck, Layers, MessageSquare,
+  ChevronDown, ChevronRight, X, ShieldCheck, Layers, MessageSquare, Globe,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -20,6 +20,7 @@ const tabs: { path: string; label: string; icon: ElementType; match?: string[] }
   { path: '/get-started', label: 'Sports',  icon: Layers,        match: ['/get-started', '/dashboard'] },
   { path: '/schedule',   label: 'Schedule', icon: Calendar,      match: ['/schedule'] },
   { path: '/chat',       label: 'Chat',     icon: MessageSquare, match: ['/chat'] },
+  { path: '/sports',     label: 'All Sports', icon: Globe,       match: ['/sports'] },
   { path: '/roster/players', label: 'Roster', icon: Users,       match: ['/roster'] },
   { path: '/stats/team', label: 'Stats',    icon: BarChart3,     match: ['/stats'] },
 ];

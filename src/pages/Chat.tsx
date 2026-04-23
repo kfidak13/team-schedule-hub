@@ -7,18 +7,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, MessageSquare, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { programLabel } from '@/lib/programUtils';
+import { programLabel, getSportGroups } from '@/lib/programUtils';
 import { useNavigate } from 'react-router-dom';
+import type { Sport } from '@/types/team';
 
 type Tab = 'announcements' | 'team-chat';
 
+const sportGroups = getSportGroups();
+
 export default function Chat() {
-  const { currentProgram } = useTeam();
-  const { isAdmin } = useAuth();
+  const { currentProgram, setCurrentProgram } = useTeam();
+  const { isAdmin, seasonProfile } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('announcements');
 
-  // No program selected — prompt
+  // For non-admins: lock to their season sport, don't allow program switching here
+  const lockedSport = !isAdmin && seasonProfile?.type === 'member' ? seasonProfile.sport : null;
+
+  // If locked to a sport but currentProgram doesn't match, auto-fix it
+  if (lockedSport && lockedSport !== 'other' && currentProgram?.sport !== lockedSport) {
+    const group = sportGroups.find(g => g.sport === (lockedSport as Sport));
+    if (group) {
+      const program = group.programs.find(p => p.level === 'varsity') ?? group.programs[0];
+      if (program) setCurrentProgram(program);
+    }
+  }
+
+  // No program resolved — prompt
   if (!currentProgram) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">

@@ -10,6 +10,7 @@ import { TrackProvider } from "./context/TrackContext";
 import { ChatProvider } from './context/ChatContext';
 import Chat from './pages/Chat';
 import { SeasonGate } from './components/auth/SeasonGate';
+import OtherSports from './pages/OtherSports';
 import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -63,6 +64,9 @@ const App = () => (
 
                 {/* Chat & Announcements */}
                 <Route path="/chat" element={<Chat />} />
+
+                {/* Other Sports (read-only) */}
+                <Route path="/sports" element={<OtherSports />} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
