@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { programKey } from '@/lib/programUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Send, MessageSquare } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Send, MessageSquare, Trash2 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -35,12 +35,13 @@ function isRateLimited(): boolean {
 }
 
 export function TeamChat({ program }: Props) {
-  const { chatMessages, loadMessagesForProgram, sendMessage } = useChat();
+  const { chatMessages, loadMessagesForProgram, sendMessage, clearProgramChat } = useChat();
   const { isAdmin } = useAuth();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [namePromptOpen, setNamePromptOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [nukeConfirmOpen, setNukeConfirmOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const viewerKey = getViewerKey();
 
@@ -57,7 +58,11 @@ export function TeamChat({ program }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages.length]);
 
-  const messages = chatMessages.filter(m => m.programKey === key);
+  // Filter messages for this program, discard those older than 30 days
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const messages = chatMessages.filter(
+    m => m.programKey === key && new Date(m.createdAt).getTime() > cutoff
+  );
 
   async function handleSend() {
     const text = input.trim();
@@ -157,6 +162,21 @@ export function TeamChat({ program }: Props) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Admin: Clear Chat */}
+      {isAdmin && (
+        <div className="flex justify-end px-4 pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive gap-1.5 text-xs"
+            onClick={() => setNukeConfirmOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear Chat
+          </Button>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="border-t border-border/50 px-4 py-3 bg-card/50">
         {!isAdmin && !senderName && (
@@ -179,6 +199,30 @@ export function TeamChat({ program }: Props) {
           </Button>
         </div>
       </div>
+
+      {/* Nuke confirmation dialog */}
+      <Dialog open={nukeConfirmOpen} onOpenChange={v => { if (!v) setNukeConfirmOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Clear all messages?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete all chat messages for this program. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNukeConfirmOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await clearProgramChat(key);
+                setNukeConfirmOpen(false);
+              }}
+            >
+              Delete All Messages
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Name prompt dialog */}
       <Dialog open={namePromptOpen} onOpenChange={v => { if (!v) setNamePromptOpen(false); }}>

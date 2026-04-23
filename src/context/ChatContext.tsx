@@ -39,6 +39,7 @@ interface ChatContextValue {
   togglePin: (id: string, pinned: boolean) => Promise<void>;
   sendMessage: (programKey: string, senderName: string, isAdmin: boolean, body: string) => Promise<void>;
   acknowledgeAnnouncement: (announcementId: string, viewerKey: string) => Promise<void>;
+  clearProgramChat: (programKey: string) => Promise<void>;
 }
 
 // ── Context ────────────────────────────────────────────────────────────────────
@@ -197,6 +198,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Admin: delete all messages for a program (nuke button)
+  const clearProgramChat = async (key: string) => {
+    await supabase.from('chat_messages').delete().eq('program_key', key);
+    setChatMessages(prev => prev.filter(m => m.programKey !== key));
+  };
+
   return (
     <ChatContext.Provider value={{
       announcements,
@@ -208,6 +215,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       togglePin,
       sendMessage,
       acknowledgeAnnouncement,
+      clearProgramChat,
     }}>
       {children}
     </ChatContext.Provider>
