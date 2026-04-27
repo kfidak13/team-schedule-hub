@@ -1,5 +1,4 @@
 import { useTeam } from '@/context/TeamContext';
-import { SportSelector } from '@/components/dashboard/SportSelector';
 import { programKey, programLabel } from '@/lib/programUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -16,16 +15,16 @@ export default function TeamStats() {
     ? games.filter(g => g.sport === currentProgram.sport && g.gender === currentProgram.gender && g.level === currentProgram.level)
     : games;
 
+  // Always compute the record from real game results — single source of truth
   const record = getRecord(currentProgram ?? undefined);
 
+  // Imported stats (if any) shown only as supplementary context
   const statsForSport = currentProgram ? importedStats[programKey(currentProgram)] : undefined;
   const overallImported = statsForSport?.overall;
 
   const totalGames = filteredGames.length;
   const completedGames = filteredGames.filter(g => g.result).length;
-  const computedWinRate = completedGames > 0 ? Math.round((record.wins / completedGames) * 100) : 0;
-  const importedWinRate = overallImported ? Math.round(overallImported.pct) : undefined;
-  const winRate = importedWinRate ?? computedWinRate;
+  const winRate = completedGames > 0 ? Math.round((record.wins / completedGames) * 100) : 0;
 
   const homeGames = filteredGames.filter(g => g.venue === 'Home').length;
   const awayGames = filteredGames.filter(g => g.venue === 'Away').length;
@@ -45,7 +44,6 @@ export default function TeamStats() {
             Performance metrics and analytics
           </p>
         </div>
-        <SportSelector />
       </div>
 
       {/* Overview Cards */}
@@ -57,11 +55,16 @@ export default function TeamStats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {overallImported ? `${overallImported.wins} - ${overallImported.losses}` : `${record.wins} - ${record.losses}`}
+              {record.wins} - {record.losses}
             </div>
             <p className="text-xs text-muted-foreground">
-              {overallImported ? 'Imported team record' : `${completedGames} games played`}
+              {completedGames} game{completedGames === 1 ? '' : 's'} played
             </p>
+            {overallImported && (overallImported.wins !== record.wins || overallImported.losses !== record.losses) && (
+              <p className="mt-1 text-[11px] text-muted-foreground/70 italic">
+                Imported team page: {overallImported.wins}-{overallImported.losses}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -73,11 +76,9 @@ export default function TeamStats() {
           <CardContent>
             <div className="text-2xl font-bold">{winRate}%</div>
             <Progress value={winRate} className="mt-2" />
-            {overallImported && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Imported from team page
-              </p>
-            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              {completedGames === 0 ? 'No completed games yet' : `${record.wins} of ${completedGames} won`}
+            </p>
           </CardContent>
         </Card>
 
