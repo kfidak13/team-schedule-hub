@@ -80,7 +80,8 @@ const HEADER_LINE_RE = /^\s*Name\s+Year\s+School/i;
 
 // A valid time/distance result token
 // Handles: 11.11, 53.93, 2:08.69, 4:42.79, 10:32.71, 6-02.00, 113-02, 45-08.50
-const FINALS_RE = /^x?(\d{1,3}:\d{2}(:\d{2})?(\.\d+)?|\d+\.\d+|\d+-\d+(\.\d+)?)$/i;
+// Optional `x` or `J` prefix (exhibition / judged) and optional `Q`/`q` suffix (Hy-Tek qualifier).
+const FINALS_RE = /^[xJ]?(\d{1,3}(:\d{2}){1,2}(\.\d+)?|\d+\.\d+|\d+-\d+(\.\d+)?)[Qq]?$/;
 
 // A skip-worthy result token
 const SKIP_RESULT_RE = /^(DNF|FOUL|NH|NWI|DQ|SCR)$/i;
@@ -119,20 +120,28 @@ function parseResultLine(line: string): {
   const cols = rest.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
   if (cols.length < 2) return null;
 
-  // Find the finals token — scan from the end, it's the first time/distance we find
+  // Find the finals token.
+  // Hy-Tek layout is deterministic: [name, grade+school, FINALS, wind?, heat?, tiebreak?],
+  // so cols[2] is the canonical result column. This avoids grabbing trailing tiebreak
+  // precision times (e.g. "12.52  0.6  2  12.513") from the end.
   let finalsIdx = -1;
-  for (let i = cols.length - 1; i >= 1; i--) {
-    // Skip pure numbers (heat, points), wind tokens, tiebreak times in parens
-    const c = cols[i];
-    if (/^\d{1,2}$/.test(c)) continue;       // heat / points
-    if (WIND_RE.test(c)) continue;            // wind
-    if (/^\d+:\d+\.\d+$/.test(c) && i === cols.length - 1) continue; // trailing split
-    if (SKIP_RESULT_RE.test(c)) return null;  // DNF etc — skip
-    if (FINALS_RE.test(c)) { finalsIdx = i; break; }
+  if (cols.length >= 3 && FINALS_RE.test(cols[2]) && !SKIP_RESULT_RE.test(cols[2])) {
+    finalsIdx = 2;
+  } else {
+    // Fallback: scan from the end for less-predictable formats (e.g. CIF).
+    for (let i = cols.length - 1; i >= 1; i--) {
+      const c = cols[i];
+      if (/^\d{1,2}$/.test(c)) continue;       // heat / points
+      if (WIND_RE.test(c)) continue;            // wind
+      if (/^\d+:\d+\.\d+$/.test(c) && i === cols.length - 1) continue; // trailing split
+      if (SKIP_RESULT_RE.test(c)) return null;  // DNF etc — skip
+      if (FINALS_RE.test(c)) { finalsIdx = i; break; }
+    }
   }
   if (finalsIdx < 0) return null;
 
-  const result = cols[finalsIdx].replace(/^x/i, ''); // strip exhibition 'x'
+  // Strip exhibition/judged prefix ("x", "J") and qualifier suffix ("Q", "q").
+  const result = cols[finalsIdx].replace(/^[xJ]/, '').replace(/[Qq]$/, '');
 
   // Reconstruct the full middle string (everything between place and finals)
   // e.g. "Mozia, Aaden              12 THE WEBB SCH" (Athletic.net, single-space separated)
