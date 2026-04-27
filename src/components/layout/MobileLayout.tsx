@@ -32,7 +32,10 @@ export function MobileLayout({ children }: MobileLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentProgram, setCurrentProgram } = useTeam();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isStatsAdmin } = useAuth();
+  const isDevRole = isAdmin || isStatsAdmin;
+  const homePath = isDevRole ? '/' : '/dashboard';
+  const visibleTabs = tabs.filter((t) => t.path !== '/' || isDevRole);
   const [sportsOpen, setSportsOpen] = useState(false);
   const [expandedSport, setExpandedSport] = useState<Sport | null>(null);
 
@@ -65,7 +68,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         className="sticky top-0 z-40 bg-[#002855] shadow-md flex items-center justify-between px-4 h-14"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <Link to="/" className="flex items-center gap-2.5">
+        <Link to={homePath} className="flex items-center gap-2.5">
           <img
             src="/icons/icon-192.png"
             alt="Webb"
@@ -113,7 +116,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         className="fixed bottom-0 inset-x-0 z-50 bg-[#001428] border-t border-white/10 flex items-stretch"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = isTabActive(tab);
           const Icon = tab.icon;
           return (

@@ -1,16 +1,18 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTeam } from '@/context/TeamContext';
 import { useAuth } from '@/context/AuthContext';
-import { getSportGroups, sportDisplayName } from '@/lib/programUtils';
+import { getSportGroups, levelLabel } from '@/lib/programUtils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { Trophy, Calendar, ChevronDown, ChevronRight, Lock } from 'lucide-react';
-import type { Sport } from '@/types/team';
+import { Trophy, Calendar, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import type { Sport, Program } from '@/types/team';
 
 const sportGroups = getSportGroups();
 
 export default function OtherSports() {
+  const navigate = useNavigate();
   const { games, getRecord } = useTeam();
   const { seasonProfile } = useAuth();
   const [expandedSport, setExpandedSport] = useState<Sport | null>(null);
@@ -18,13 +20,16 @@ export default function OtherSports() {
   // The user's own sport — we still show it but mark it
   const mySport = seasonProfile?.type === 'member' ? seasonProfile.sport : null;
 
+  function openProgram(p: Program) {
+    navigate(`/sports/${p.sport}/${p.gender}/${p.level}`);
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-4 py-2">
+    <div className="mx-auto max-w-3xl space-y-3 py-2">
       <div className="mb-2">
         <h1 className="text-xl font-bold">All Sports</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Scores and schedules across Webb Athletics.
-          <span className="ml-1 text-xs">Chat and announcements are only available for your own sport.</span>
+          Browse other Webb teams. Tap a sport to see stats, schedule, roster, and coaches.
         </p>
       </div>
 
@@ -32,15 +37,11 @@ export default function OtherSports() {
         const isOwn = group.sport === mySport;
         const isExpanded = expandedSport === group.sport;
 
-        // Collect all games for this sport (all programs)
-        const sportGames = games
-          .filter(g => g.sport === group.sport)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        // Quick W-L from the varsity-boys or first program available
+        // Quick W-L from varsity (preferred) or first program
         const repProgram = group.programs.find(p => p.level === 'varsity') ?? group.programs[0];
         const record = getRecord(repProgram);
         const hasRecord = record.wins > 0 || record.losses > 0;
+        const totalGames = games.filter(g => g.sport === group.sport).length;
 
         return (
           <div
@@ -68,10 +69,10 @@ export default function OtherSports() {
                     {record.wins}–{record.losses}
                   </span>
                 )}
-                {sportGames.length > 0 && (
+                {totalGames > 0 && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {sportGames.length} games
+                    {totalGames} games
                   </span>
                 )}
               </div>
@@ -82,53 +83,51 @@ export default function OtherSports() {
               }
             </button>
 
-            {/* Expanded games list */}
+            {/* Expanded program picker */}
             {isExpanded && (
-              <div className="border-t border-border/50 divide-y divide-border/30">
-                {sportGames.length === 0 ? (
-                  <p className="px-4 py-4 text-sm text-muted-foreground text-center">
-                    No games scheduled yet.
-                  </p>
+              <div className="border-t border-border/50 p-4 space-y-3 bg-muted/10">
+                {group.hasMultipleGenders ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(['boys', 'girls'] as const).map(gender => {
+                      const progs = group.programs.filter(p => p.gender === gender);
+                      if (!progs.length) return null;
+                      return (
+                        <div key={gender}>
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {gender === 'boys' ? 'Boys' : 'Girls'}
+                          </p>
+                          <div className="flex flex-col gap-1.5">
+                            {progs.map(p => (
+                              <Button
+                                key={`${p.gender}-${p.level}`}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openProgram(p)}
+                                className="justify-between border-white/15 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/10"
+                              >
+                                <span>{levelLabel(p.level)}</span>
+                                <ArrowRight className="h-3.5 w-3.5 opacity-60" />
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  sportGames.map(game => {
-                    const dateStr = game.date instanceof Date
-                      ? format(game.date, 'MMM d')
-                      : format(new Date(game.date), 'MMM d');
-                    const hasResult = !!game.result;
-                    const isWin = hasResult && game.result!.won;
-
-                    return (
-                      <div key={game.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                        <span className="text-muted-foreground w-12 shrink-0 text-xs">{dateStr}</span>
-                        <span className="flex-1 truncate">
-                          {game.isLeague ? '⚑ ' : ''}{game.opponent}
-                        </span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {sportDisplayName(game.sport as Sport)} · {game.gender === 'boys' ? 'B' : 'G'} {game.level.toUpperCase()}
-                        </span>
-                        {hasResult ? (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-[10px] shrink-0',
-                              isWin ? 'border-green-500/40 text-green-500' : 'border-destructive/40 text-destructive',
-                            )}
-                          >
-                            {game.title ?? (isWin ? 'W' : 'L')}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground shrink-0">{game.time ?? 'TBD'}</span>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-
-                {/* Chat locked notice for non-own sports */}
-                {!isOwn && (
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/20 text-xs text-muted-foreground">
-                    <Lock className="h-3.5 w-3.5 shrink-0" />
-                    Chat and announcements for {group.name} are only visible to {group.name} team members.
+                  <div className="flex flex-wrap gap-2">
+                    {group.programs.map(p => (
+                      <Button
+                        key={`${p.gender}-${p.level}`}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openProgram(p)}
+                        className="border-white/15 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/10"
+                      >
+                        {levelLabel(p.level)}
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5 opacity-60" />
+                      </Button>
+                    ))}
                   </div>
                 )}
               </div>

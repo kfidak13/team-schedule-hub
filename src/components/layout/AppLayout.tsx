@@ -70,7 +70,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentProgram, setCurrentProgram } = useTeam();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isStatsAdmin } = useAuth();
+  const isDevRole = isAdmin || isStatsAdmin;
+  const homePath = isDevRole ? '/' : '/dashboard';
   const isMobile = useIsMobile();
 
   function selectProgram(program: Program) {
@@ -95,7 +97,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-50 bg-[#002855] shadow-md" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-3 sm:px-4">
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to={homePath} className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden">
                 <img src="/images/webb-logo.png" alt="Webb" className="h-7 w-7 object-contain brightness-0 invert" />
               </div>
@@ -129,16 +131,18 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           <nav className="hidden items-center gap-1 md:flex">
-            <Link
-              to="/"
-              className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium transition-all duration-300',
-                location.pathname === '/' ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-white/70 hover:text-white'
-              )}
-            >
-              <Home className="inline h-4 w-4 mr-1 -mt-0.5" />
-              Home
-            </Link>
+            {isDevRole && (
+              <Link
+                to="/"
+                className={cn(
+                  'rounded-md px-3 py-2 text-sm font-medium transition-all duration-300',
+                  location.pathname === '/' ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-white/70 hover:text-white'
+                )}
+              >
+                <Home className="inline h-4 w-4 mr-1 -mt-0.5" />
+                Home
+              </Link>
+            )}
             <Link
               to="/dashboard"
               className={cn(
@@ -200,12 +204,14 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuItem asChild>
-                  <Link to="/" className="flex items-center gap-2">
-                    <Home className="h-4 w-4" />
-                    Home
-                  </Link>
-                </DropdownMenuItem>
+                {isDevRole && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/" className="flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      Home
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard" className="flex items-center gap-2">
                     <LayoutDashboard className="h-4 w-4" />

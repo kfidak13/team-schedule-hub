@@ -11,6 +11,8 @@ import { ChatProvider } from './context/ChatContext';
 import Chat from './pages/Chat';
 import { SeasonGate } from './components/auth/SeasonGate';
 import OtherSports from './pages/OtherSports';
+import SportView from './pages/SportView';
+import { HomeGate } from './components/auth/HomeGate';
 import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -37,8 +39,8 @@ const App = () => (
           <BrowserRouter>
             <AppLayout>
               <Routes>
-                {/* Public homepage — carousel */}
-                <Route path="/" element={<Home />} />
+                {/* Public homepage — carousel (dev/admin only; others redirect to dashboard) */}
+                <Route path="/" element={<HomeGate><Home /></HomeGate>} />
 
                 {/* Program selection */}
                 <Route path="/get-started" element={<GetStarted />} />
@@ -67,6 +69,7 @@ const App = () => (
 
                 {/* Other Sports (read-only) */}
                 <Route path="/sports" element={<OtherSports />} />
+                <Route path="/sports/:sport/:gender/:level" element={<SportView />} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
