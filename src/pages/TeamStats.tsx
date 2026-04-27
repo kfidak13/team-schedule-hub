@@ -3,6 +3,7 @@ import { programKey, programLabel } from '@/lib/programUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Target, TrendingUp, Calendar, Users, Percent } from 'lucide-react';
+import { SeasonRecords } from '@/components/track/SeasonRecords';
 
 export default function TeamStats() {
   const { games, players, coaches, currentProgram, getRecord, importedStats } = useTeam();
@@ -32,6 +33,9 @@ export default function TeamStats() {
 
   const upcomingGames = filteredGames.filter(g => new Date(g.date) > new Date()).length;
   const pastGames = filteredGames.filter(g => new Date(g.date) <= new Date()).length;
+
+  const isTrackProgram =
+    currentProgram?.sport === 'track_field' || currentProgram?.sport === 'cross_country';
 
   return (
     <div className="space-y-6">
@@ -108,6 +112,11 @@ export default function TeamStats() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Track/Cross-Country Season Records */}
+      {isTrackProgram && (
+        <SeasonRecords athletes={filteredPlayers} />
+      )}
 
       {/* Detailed Stats */}
       <div className="grid gap-4 md:grid-cols-2 stagger-list">

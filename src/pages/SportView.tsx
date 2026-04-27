@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { GameCard } from '@/components/schedule/GameCard';
 import { PlayerCard } from '@/components/roster/PlayerCard';
 import { CoachCard } from '@/components/roster/CoachCard';
+import { SeasonRecords } from '@/components/track/SeasonRecords';
 import {
   Trophy, Percent, Calendar, Users as UsersIcon,
   BarChart3, ClipboardList, UserCircle, Shield, ArrowLeft, Lock,
@@ -125,6 +126,7 @@ export default function SportView() {
 
       {/* Stats tab */}
       {tab === 'stats' && (
+        <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -171,6 +173,11 @@ export default function SportView() {
               <p className="text-xs text-muted-foreground">{filteredCoaches.length} coaches</p>
             </CardContent>
           </Card>
+        </div>
+
+        {(sport === 'track_field' || sport === 'cross_country') && (
+          <SeasonRecords athletes={filteredPlayers} />
+        )}
         </div>
       )}
 
