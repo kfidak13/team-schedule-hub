@@ -10,6 +10,7 @@ import { PageTransition } from './PageTransition';
 import { MobileLayout } from './MobileLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Calendar, Users, LayoutDashboard, BarChart3, Trophy, Upload, List, UserCircle, Shield, Gamepad2, Menu, ChevronDown, Layers, ShieldCheck, Home, MessageSquare, Globe } from 'lucide-react';
+import { isDev } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -176,14 +177,16 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <DropdownMenuContent align="end" className="w-56 bg-white border-border">
                     <DropdownMenuLabel className="text-[#002855]">{section.label}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {section.children?.map((child) => (
-                      <DropdownMenuItem key={child.path} asChild className="text-[#002855] hover:border-l-2 hover:border-l-[#D4AF37] focus:border-l-2 focus:border-l-[#D4AF37]">
-                        <Link to={child.path} className="flex items-center gap-2">
-                          <child.icon className="h-4 w-4" />
-                          {child.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
+                    {section.children
+                      ?.filter((c) => c.path !== '/schedule/import' || isDev)
+                      .map((child) => (
+                        <DropdownMenuItem key={child.path} asChild className="text-[#002855] hover:border-l-2 hover:border-l-[#D4AF37] focus:border-l-2 focus:border-l-[#D4AF37]">
+                          <Link to={child.path} className="flex items-center gap-2">
+                            <child.icon className="h-4 w-4" />
+                            {child.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ))}
@@ -235,7 +238,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   .filter((s) => s.children)
                   .map((section) => {
                     const visibleChildren = (section.children ?? []).filter(
-                      (c) => c.path !== '/schedule/import' || isAdmin
+                      (c) => c.path !== '/schedule/import' || (isAdmin && isDev)
                     );
                     if (!visibleChildren.length) return null;
                     return (

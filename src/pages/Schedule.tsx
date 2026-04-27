@@ -4,6 +4,7 @@ import { AddGameDialog } from '@/components/schedule/AddGameDialog';
 import { useTeam } from '@/context/TeamContext';
 import { useAuth } from '@/context/AuthContext';
 import { programLabel } from '@/lib/programUtils';
+import { isDev } from '@/lib/env';
 
 export default function Schedule() {
   const { games, currentProgram } = useTeam();
@@ -37,7 +38,7 @@ export default function Schedule() {
         </div>
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-2">
-            <HtmlImporter />
+            {isDev && <HtmlImporter />}
             <AddGameDialog />
           </div>
         )}

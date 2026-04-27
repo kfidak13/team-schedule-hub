@@ -17,6 +17,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { USTAImportDialog } from '@/components/tennis/USTAImportDialog';
 import { TrackImportDialog } from '@/components/track/TrackImportDialog';
 import { toast } from 'sonner';
+import { isDev } from '@/lib/env';
 
 export default function Roster() {
   const { players, coaches, currentProgram, deletePlayer, deleteCoach } = useTeam();
@@ -81,9 +82,9 @@ export default function Roster() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {isAdmin && <RosterImporter />}
-          {isAdmin && currentProgram?.sport === 'tennis' && <USTAImportDialog />}
-          {isAdmin && currentProgram?.sport === 'track_field' && <TrackImportDialog />}
+          {isAdmin && isDev && <RosterImporter />}
+          {isAdmin && isDev && currentProgram?.sport === 'tennis' && <USTAImportDialog />}
+          {isAdmin && isDev && currentProgram?.sport === 'track_field' && <TrackImportDialog />}
           {isAdmin && <AddPersonDialog type="player" />}
           {isAdmin && <AddPersonDialog type="coach" />}
         </div>
