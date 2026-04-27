@@ -104,91 +104,18 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
             </Link>
 
-            {/* Sports switcher — desktop */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="hidden h-9 items-center gap-1.5 px-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 md:flex">
-                  <Layers className="h-4 w-4" />
-                  Sports
-                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">Select program</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {sportGroups.map((group) => (
-                  <DropdownMenuSub key={group.sport}>
-                    <DropdownMenuSubTrigger className="gap-2">
-                      {group.name}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-44">
-                      {group.hasMultipleGenders && (
-                        <>
-                          <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">Boys</DropdownMenuLabel>
-                          {group.programs
-                            .filter((p) => p.gender === 'boys')
-                            .map((p) => (
-                              <DropdownMenuItem
-                                key={p.label}
-                                onClick={() => selectProgram(p)}
-                                className={cn(
-                                  currentProgram?.sport === p.sport &&
-                                  currentProgram?.gender === p.gender &&
-                                  currentProgram?.level === p.level &&
-                                  'bg-gold/10 text-gold font-medium'
-                                )}
-                              >
-                                {levelLabel(p.level)}
-                              </DropdownMenuItem>
-                            ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">Girls</DropdownMenuLabel>
-                          {group.programs
-                            .filter((p) => p.gender === 'girls')
-                            .map((p) => (
-                              <DropdownMenuItem
-                                key={p.label}
-                                onClick={() => selectProgram(p)}
-                                className={cn(
-                                  currentProgram?.sport === p.sport &&
-                                  currentProgram?.gender === p.gender &&
-                                  currentProgram?.level === p.level &&
-                                  'bg-gold/10 text-gold font-medium'
-                                )}
-                              >
-                                {levelLabel(p.level)}
-                              </DropdownMenuItem>
-                            ))}
-                        </>
-                      )}
-                      {!group.hasMultipleGenders &&
-                        group.programs.map((p) => (
-                          <DropdownMenuItem
-                            key={p.label}
-                            onClick={() => selectProgram(p)}
-                            className={cn(
-                              currentProgram?.sport === p.sport &&
-                              currentProgram?.gender === p.gender &&
-                              currentProgram?.level === p.level &&
-                              'bg-gold/10 text-gold font-medium'
-                            )}
-                          >
-                            {levelLabel(p.level)}
-                          </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Sports — navigates to All Sports view */}
+            <Button
+              variant="ghost"
+              className="hidden h-9 items-center gap-1.5 px-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 md:flex"
+              onClick={() => navigate('/sports')}
+            >
+              <Layers className="h-4 w-4" />
+              Sports
+            </Button>
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
-            {currentProgram && (
-              <span className="flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-3 py-1 text-xs font-medium text-[#D4AF37]">
-                {programLabel(currentProgram)}
-              </span>
-            )}
             {isAdmin && (
               <Link
                 to="/admin-login"
@@ -230,17 +157,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               <MessageSquare className="inline h-4 w-4" />
               Chat
             </Link>
-            <Link
-              to="/sports"
-              className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium transition-all duration-300 flex items-center gap-1.5',
-                location.pathname.startsWith('/sports') ? 'text-[#D4AF37] border-b-2 border-[#D4AF37]' : 'text-white/70 hover:text-white'
-              )}
-            >
-              <Globe className="inline h-4 w-4" />
-              All Sports
-            </Link>
-
             {navSections
               .filter((s) => s.children)
               .map((section) => (
@@ -297,12 +213,6 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Link to="/chat" className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Chat
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/sports" className="flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    All Sports
                   </Link>
                 </DropdownMenuItem>
                 {isAdmin && (
