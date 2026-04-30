@@ -21,14 +21,20 @@ export default function Chat() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('announcements');
 
-  // For non-admins: lock to their season sport, don't allow program switching here
+  // For non-admins: lock to their season sport (and gender if known)
   const lockedSport = !isAdmin && seasonProfile?.type === 'member' ? seasonProfile.sport : null;
+  const lockedGender = !isAdmin && seasonProfile?.type === 'member' ? seasonProfile.gender : undefined;
 
-  // If locked to a sport but currentProgram doesn't match, auto-fix it
+  // If locked to a sport but currentProgram doesn't match, auto-fix it.
+  // For multi-gender sports without a known gender, skip — avoids defaulting to boys.
   if (lockedSport && lockedSport !== 'other' && currentProgram?.sport !== lockedSport) {
     const group = sportGroups.find(g => g.sport === (lockedSport as Sport));
-    if (group) {
-      const program = group.programs.find(p => p.level === 'varsity') ?? group.programs[0];
+    if (group && (!group.hasMultipleGenders || lockedGender)) {
+      const program =
+        (lockedGender
+          ? (group.programs.find(p => p.level === 'varsity' && p.gender === lockedGender) ??
+             group.programs.find(p => p.gender === lockedGender))
+          : (group.programs.find(p => p.level === 'varsity') ?? group.programs[0])) ?? group.programs[0];
       if (program) setCurrentProgram(program);
     }
   }

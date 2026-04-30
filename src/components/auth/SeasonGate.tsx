@@ -18,13 +18,28 @@ export function SeasonGate() {
   function handleComplete(profile: SeasonProfile) {
     setSeasonProfile(profile);
 
-    // Auto-set program for members who picked a sport
+    // Auto-set program for members who picked a sport — only if unambiguous.
+    // For sports with both boys AND girls varsity (e.g. track_field), we don't know
+    // which one the user belongs to, so leave currentProgram unset and let them
+    // pick explicitly from the sidebar / program switcher.
     if (profile.type === 'member' && profile.sport && profile.sport !== 'other') {
       const group = sportGroups.find(g => g.sport === (profile.sport as Sport));
       if (group) {
-        // Prefer varsity, fall back to first available program
-        const program = group.programs.find(p => p.level === 'varsity') ?? group.programs[0];
-        if (program) setCurrentProgram(program);
+        if (group.hasMultipleGenders && profile.gender) {
+          // Multi-gender sport with known gender — pick that gender's varsity
+          const program =
+            group.programs.find(p => p.level === 'varsity' && p.gender === profile.gender) ??
+            group.programs.find(p => p.gender === profile.gender);
+          if (program) setCurrentProgram(program);
+        } else if (!group.hasMultipleGenders) {
+          const varsity = group.programs.filter(p => p.level === 'varsity');
+          if (varsity.length === 1) {
+            setCurrentProgram(varsity[0]);
+          } else if (varsity.length === 0 && group.programs.length === 1) {
+            setCurrentProgram(group.programs[0]);
+          }
+        }
+        // Multi-gender without gender in profile: leave unset so user can pick.
       }
     }
   }

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, Eye, GraduationCap, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCurrentSeason, SEASON_SPORTS, GRADES } from '@/lib/season';
-import { sportDisplayName } from '@/lib/programUtils';
+import { sportDisplayName, getSportGroups } from '@/lib/programUtils';
 import type { Sport } from '@/types/team';
 
 export interface SeasonProfile {
@@ -16,8 +16,11 @@ export interface SeasonProfile {
   email?: string;
   grade?: string;
   sport?: string;
+  gender?: 'boys' | 'girls';
   seasonKey: string;
 }
+
+const sportGroupData = getSportGroups();
 
 interface Props {
   open: boolean;
@@ -33,9 +36,13 @@ export function SeasonLoginModal({ open, onComplete }: Props) {
   const [email, setEmail] = useState('');
   const [grade, setGrade] = useState('');
   const [sport, setSport] = useState('');
+  const [gender, setGender] = useState<'boys' | 'girls' | ''>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const seasonSports = SEASON_SPORTS[season.name] as Sport[];
+
+  const selectedGroup = sport ? sportGroupData.find(g => g.sport === (sport as Sport)) : null;
+  const needsGender = selectedGroup?.hasMultipleGenders ?? false;
 
   function validate() {
     const e: Record<string, string> = {};
@@ -47,6 +54,7 @@ export function SeasonLoginModal({ open, onComplete }: Props) {
     }
     if (!grade) e.grade = 'Select your grade.';
     if (!sport) e.sport = 'Select your sport.';
+    if (needsGender && !gender) e.gender = 'Select Boys or Girls.';
     return e;
   }
 
@@ -60,6 +68,7 @@ export function SeasonLoginModal({ open, onComplete }: Props) {
       email: email.trim().toLowerCase(),
       grade,
       sport,
+      gender: needsGender ? (gender as 'boys' | 'girls') : undefined,
       seasonKey: season.key,
     });
   }
@@ -190,7 +199,7 @@ export function SeasonLoginModal({ open, onComplete }: Props) {
               {/* Sport — filtered to current season */}
               <div className="space-y-1">
                 <Label className="text-xs">Primary Sport <span className="text-muted-foreground">({season.label})</span></Label>
-                <Select value={sport} onValueChange={v => { setSport(v); setErrors(p => ({ ...p, sport: '' })); }}>
+                <Select value={sport} onValueChange={v => { setSport(v); setGender(''); setErrors(p => ({ ...p, sport: '', gender: '' })); }}>
                   <SelectTrigger className={cn(errors.sport && 'border-destructive')}>
                     <SelectValue placeholder="Select sport…" />
                   </SelectTrigger>
@@ -203,6 +212,22 @@ export function SeasonLoginModal({ open, onComplete }: Props) {
                 </Select>
                 {errors.sport && <p className="text-xs text-destructive flex gap-1"><AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />{errors.sport}</p>}
               </div>
+
+              {needsGender && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Boys or Girls</Label>
+                  <Select value={gender} onValueChange={v => { setGender(v as 'boys' | 'girls'); setErrors(p => ({ ...p, gender: '' })); }}>
+                    <SelectTrigger className={cn(errors.gender && 'border-destructive')}>
+                      <SelectValue placeholder="Boys or Girls…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="boys">Boys</SelectItem>
+                      <SelectItem value="girls">Girls</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.gender && <p className="text-xs text-destructive flex gap-1"><AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />{errors.gender}</p>}
+                </div>
+              )}
 
               <Button type="submit" className="w-full mt-2">
                 Enter Webb Sports Hub

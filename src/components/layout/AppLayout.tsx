@@ -107,15 +107,44 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
             </Link>
 
-            {/* Sports — navigates to All Sports view */}
-            <Button
-              variant="ghost"
-              className="hidden h-9 items-center gap-1.5 px-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 md:flex"
-              onClick={() => navigate('/sports')}
-            >
-              <Layers className="h-4 w-4" />
-              Sports
-            </Button>
+            {/* Program switcher — admins only */}
+            {isDevRole ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hidden h-9 items-center gap-1.5 px-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 md:flex"
+                  >
+                    <Layers className="h-4 w-4" />
+                    <span className="max-w-[180px] truncate">
+                      {currentProgram ? programLabel(currentProgram) : 'Select Program'}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64 bg-white border-border">
+                  <DropdownMenuLabel className="text-[#002855]">Switch Program</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <MobileSportsList
+                    sportGroups={sportGroups}
+                    selectProgram={selectProgram}
+                    currentProgram={currentProgram}
+                  />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/sports" className="flex items-center gap-2 text-[#002855]">
+                      <Globe className="h-4 w-4" />
+                      Browse all sports
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : currentProgram ? (
+              <span className="hidden md:flex items-center gap-1.5 px-3 text-sm font-medium text-white/70">
+                <Layers className="h-4 w-4" />
+                {programLabel(currentProgram)}
+              </span>
+            ) : null}
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
@@ -238,7 +267,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Layers className="h-4 w-4" />
                   Sports
                 </DropdownMenuLabel>
-                <MobileSportsList sportGroups={sportGroups} selectProgram={selectProgram} currentProgram={currentProgram} />
+                {isDevRole && <MobileSportsList sportGroups={sportGroups} selectProgram={selectProgram} currentProgram={currentProgram} />}
+                {!isDevRole && currentProgram && (
+                  <DropdownMenuItem disabled className="text-sm text-muted-foreground pl-6">
+                    {programLabel(currentProgram)}
+                  </DropdownMenuItem>
+                )}
 
                 {navSections
                   .filter((s) => s.children)
@@ -291,7 +325,7 @@ function MobileSportsList({
 }: {
   sportGroups: SportGroup[];
   selectProgram: (p: Program) => void;
-  currentProgram: Program | null;
+  currentProgram?: Program;
 }) {
   const [openSport, setOpenSport] = useState<string | null>(null);
 
@@ -322,7 +356,7 @@ function MobileSportsList({
                   {group.programs.filter((p) => p.gender === 'boys').map((p) => (
                     <DropdownMenuItem
                       key={p.label}
-                      onClick={() => selectProgram(p)}
+                      onSelect={() => selectProgram(p)}
                       className={cn(
                         'text-sm',
                         currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
@@ -337,7 +371,7 @@ function MobileSportsList({
                   {group.programs.filter((p) => p.gender === 'girls').map((p) => (
                     <DropdownMenuItem
                       key={p.label}
-                      onClick={() => selectProgram(p)}
+                      onSelect={() => selectProgram(p)}
                       className={cn(
                         'text-sm',
                         currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
@@ -353,7 +387,7 @@ function MobileSportsList({
                 group.programs.map((p) => (
                   <DropdownMenuItem
                     key={p.label}
-                    onClick={() => selectProgram(p)}
+                    onSelect={() => selectProgram(p)}
                     className={cn(
                       'text-sm',
                       currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
