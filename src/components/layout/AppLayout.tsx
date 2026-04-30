@@ -122,17 +122,17 @@ export function AppLayout({ children }: AppLayoutProps) {
                     <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 bg-white border-border">
-                  <DropdownMenuLabel className="text-[#002855]">Switch Program</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
+                <DropdownMenuContent align="start" className="w-64 bg-[#002855] border-border">
+                  <DropdownMenuLabel className="text-white">Switch Program</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/10" />
                   <MobileSportsList
                     sportGroups={sportGroups}
                     selectProgram={selectProgram}
                     currentProgram={currentProgram}
                   />
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem asChild>
-                    <Link to="/sports" className="flex items-center gap-2 text-[#002855]">
+                    <Link to="/sports" className="flex items-center gap-2 text-white hover:bg-white/10">
                       <Globe className="h-4 w-4" />
                       Browse all sports
                     </Link>
@@ -232,44 +232,44 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuContent align="end" className="w-64 bg-[#002855]">
                 {isDevRole && (
                   <DropdownMenuItem asChild>
-                    <Link to="/" className="flex items-center gap-2">
+                    <Link to="/" className="flex items-center gap-2 text-white hover:bg-white/10">
                       <Home className="h-4 w-4" />
                       Home
                     </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="flex items-center gap-2">
+                  <Link to="/dashboard" className="flex items-center gap-2 text-white hover:bg-white/10">
                     <LayoutDashboard className="h-4 w-4" />
                     Dashboard
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/chat" className="flex items-center gap-2">
+                  <Link to="/chat" className="flex items-center gap-2 text-white hover:bg-white/10">
                     <MessageSquare className="h-4 w-4" />
                     Chat
                   </Link>
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link to="/admin-login" className="flex items-center gap-2 text-primary">
+                    <Link to="/admin-login" className="flex items-center gap-2 text-[#D4AF37] hover:bg-white/10">
                       <ShieldCheck className="h-4 w-4" />
                       Admin Settings
                     </Link>
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="flex items-center gap-2">
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuLabel className="flex items-center gap-2 text-white">
                   <Layers className="h-4 w-4" />
                   Sports
                 </DropdownMenuLabel>
                 {isDevRole && <MobileSportsList sportGroups={sportGroups} selectProgram={selectProgram} currentProgram={currentProgram} />}
                 {!isDevRole && currentProgram && (
-                  <DropdownMenuItem disabled className="text-sm text-muted-foreground pl-6">
+                  <DropdownMenuItem disabled className="text-sm text-white/60 pl-6">
                     {programLabel(currentProgram)}
                   </DropdownMenuItem>
                 )}
@@ -283,14 +283,14 @@ export function AppLayout({ children }: AppLayoutProps) {
                     if (!visibleChildren.length) return null;
                     return (
                       <div key={section.label}>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="flex items-center gap-2">
+                        <DropdownMenuSeparator className="bg-white/10" />
+                        <DropdownMenuLabel className="flex items-center gap-2 text-white">
                           <section.icon className="h-4 w-4" />
                           {section.label}
                         </DropdownMenuLabel>
                         {visibleChildren.map((child) => (
                           <DropdownMenuItem key={child.path} asChild>
-                            <Link to={child.path} className="flex items-center gap-2">
+                            <Link to={child.path} className="flex items-center gap-2 text-white hover:bg-white/10">
                               <child.icon className="h-4 w-4" />
                               {child.label}
                             </Link>
@@ -338,12 +338,12 @@ function MobileSportsList({
               e.preventDefault();
               setOpenSport(openSport === group.sport ? null : group.sport);
             }}
-            className="flex items-center justify-between pl-6 text-sm"
+            className="flex items-center justify-between pl-6 text-sm text-white hover:bg-white/10"
           >
             {group.name}
             <ChevronDown
               className={cn(
-                'h-3.5 w-3.5 transition-transform duration-200',
+                'h-3.5 w-3.5 transition-transform duration-200 text-white/70',
                 openSport === group.sport && 'rotate-180'
               )}
             />
@@ -352,13 +352,13 @@ function MobileSportsList({
             <div className="pl-10 pb-1">
               {group.hasMultipleGenders ? (
                 <>
-                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">Boys</p>
+                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-white/60">Boys</p>
                   {group.programs.filter((p) => p.gender === 'boys').map((p) => (
                     <DropdownMenuItem
                       key={p.label}
                       onSelect={() => selectProgram(p)}
                       className={cn(
-                        'text-sm',
+                        'text-sm text-white hover:bg-white/10',
                         currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
                           ? 'text-[#D4AF37] font-medium'
                           : ''
@@ -367,13 +367,13 @@ function MobileSportsList({
                       {levelLabel(p.level)}
                     </DropdownMenuItem>
                   ))}
-                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">Girls</p>
+                  <p className="px-2 py-1 text-xs uppercase tracking-wider text-white/60">Girls</p>
                   {group.programs.filter((p) => p.gender === 'girls').map((p) => (
                     <DropdownMenuItem
                       key={p.label}
                       onSelect={() => selectProgram(p)}
                       className={cn(
-                        'text-sm',
+                        'text-sm text-white hover:bg-white/10',
                         currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
                           ? 'text-[#D4AF37] font-medium'
                           : ''
@@ -389,7 +389,7 @@ function MobileSportsList({
                     key={p.label}
                     onSelect={() => selectProgram(p)}
                     className={cn(
-                      'text-sm',
+                      'text-sm text-white hover:bg-white/10',
                       currentProgram?.sport === p.sport && currentProgram?.gender === p.gender && currentProgram?.level === p.level
                         ? 'text-[#D4AF37] font-medium'
                         : ''
