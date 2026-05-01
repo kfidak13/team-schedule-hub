@@ -70,7 +70,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentProgram, setCurrentProgram } = useTeam();
-  const { isAdmin, isStatsAdmin } = useAuth();
+  const { isAdmin, isStatsAdmin, isAuthenticated, signOut, user } = useAuth();
   const isDevRole = isAdmin || isStatsAdmin;
   const homePath = isDevRole ? '/' : '/dashboard';
   const isMobile = useIsMobile();
@@ -150,11 +150,27 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="hidden items-center gap-2 sm:flex">
             {isAdmin && (
               <Link
-                to="/admin-login"
-                className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition-colors"
+                to="/admin/users"
+                className="flex items-center gap-1.5 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-3 py-1 text-xs font-medium text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-colors"
               >
                 <ShieldCheck className="h-3 w-3" />
                 Admin
+              </Link>
+            )}
+            {isAuthenticated ? (
+              <button
+                onClick={() => signOut()}
+                className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition-colors"
+                title={user.email ?? user.displayName}
+              >
+                Sign Out
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition-colors"
+              >
+                Sign In
               </Link>
             )}
           </div>
@@ -255,9 +271,20 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link to="/admin-login" className="flex items-center gap-2 text-[#D4AF37] hover:bg-white/10">
+                    <Link to="/admin/users" className="flex items-center gap-2 text-[#D4AF37] hover:bg-white/10">
                       <ShieldCheck className="h-4 w-4" />
-                      Admin Settings
+                      User Management
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {isAuthenticated ? (
+                  <DropdownMenuItem onSelect={() => signOut()} className="text-white hover:bg-white/10">
+                    Sign Out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link to="/login" className="flex items-center gap-2 text-white hover:bg-white/10">
+                      Sign In
                     </Link>
                   </DropdownMenuItem>
                 )}

@@ -17,7 +17,12 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import GetStarted from "./pages/GetStarted";
-import AdminLogin from "./pages/AdminLogin";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
+import AdminUsers from "./pages/AdminUsers";
 import Schedule from "./pages/Schedule";
 import Roster from "./pages/Roster";
 import TeamStats from "./pages/TeamStats";
@@ -48,8 +53,17 @@ const App = () => (
                 {/* Program dashboard overview */}
                 <Route path="/dashboard" element={<Dashboard />} />
 
-                {/* Admin login */}
-                <Route path="/admin-login" element={<AdminLogin />} />
+                {/* Authentication */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                {/* Legacy redirect */}
+                <Route path="/admin-login" element={<Navigate to="/login" replace />} />
+
+                {/* Admin: User Management */}
+                <Route path="/admin/users" element={<AdminUsers />} />
 
                 {/* Schedule Branch */}
                 <Route path="/schedule" element={<Schedule />} />

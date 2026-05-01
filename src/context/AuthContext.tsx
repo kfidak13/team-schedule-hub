@@ -1,59 +1,94 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { getCurrentSeason } from '@/lib/season';
 import type { SeasonProfile } from '@/components/auth/SeasonLoginModal';
 import type { Program } from '@/types/team';
 
-// ── Role credentials — change PINs here ──────────────────────────────────────
-const CREDENTIALS: Record<string, AppRole> = {
-  'gauls2026':  'admin',        // Athletic Director
-  'statswebb':  'stats_admin',  // Stats Admin (you)
-  'COACHWEBB':  'coach',        // Shared coach access code
-};
-// Students have no code — they self-identify with a name
 // ─────────────────────────────────────────────────────────────────────────────
-
+// Roles
+// ─────────────────────────────────────────────────────────────────────────────
 export type AppRole = 'admin' | 'stats_admin' | 'coach' | 'student' | 'viewer';
+
+export interface Profile {
+  id: string;
+  email: string;
+  displayName: string;
+  role: AppRole;
+  sport?: string | null;
+  gender?: 'boys' | 'girls' | null;
+  level?: string | null;
+  createdAt: string;
+}
 
 export interface AuthUser {
   role: AppRole;
-  displayName: string;   // "Athletic Director", coach's name, student's name
-  sport?: string;        // coaches & students: which sport they selected
+  displayName: string;
+  email?: string;
+  sport?: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Context
+// ─────────────────────────────────────────────────────────────────────────────
 interface AuthContextType {
   user: AuthUser;
-  isAdmin: boolean;        // AD only
+  profile: Profile | null;
+  session: Session | null;
+  loading: boolean;
+
+  isAdmin: boolean;
   isStatsAdmin: boolean;
   isCoach: boolean;
   isStudent: boolean;
-  isAuthenticated: boolean; // any role except viewer
+  isAuthenticated: boolean;
+
   primaryProgram: Program | null;
   setPrimaryProgram: (p: Program) => void;
-  login: (pin: string) => AppRole | false;
-  loginAsStudent: (name: string) => void;
-  logout: () => void;
-  // Season gate
+
+  // Auth actions
+  signUp: (email: string, password: string, displayName: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ error?: string }>;
+  refreshProfile: () => Promise<void>;
+
+  // Admin actions
+  updateUserRole: (userId: string, role: AppRole) => Promise<{ error?: string }>;
+  fetchAllProfiles: () => Promise<Profile[]>;
+  deleteProfile: (userId: string) => Promise<{ error?: string }>;
+
+  // Season gate (still used to capture sport+gender for unauthenticated viewers)
   seasonProfile: SeasonProfile | null;
   setSeasonProfile: (p: SeasonProfile) => void;
   needsSeasonLogin: boolean;
 }
 
-const DEFAULT_USER: AuthUser = { role: 'viewer', displayName: 'Guest' };
-
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Localhost dev mode — auto-admin so you don't have to log in while building
+// ─────────────────────────────────────────────────────────────────────────────
 const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
-function loadUser(): AuthUser {
-  if (isLocalhost) return { role: 'admin', displayName: 'Athletic Director' };
-  try {
-    const s = localStorage.getItem('auth_user');
-    return s ? JSON.parse(s) : DEFAULT_USER;
-  } catch { return DEFAULT_USER; }
-}
+const DEFAULT_USER: AuthUser = { role: 'viewer', displayName: 'Guest' };
+const DEV_USER: AuthUser = { role: 'admin', displayName: 'Athletic Director (dev)' };
 
-function saveUser(u: AuthUser) {
-  localStorage.setItem('auth_user', JSON.stringify(u));
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function rowToProfile(row: Record<string, unknown>): Profile {
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    displayName: (row.display_name as string) ?? '',
+    role: row.role as AppRole,
+    sport: (row.sport as string) ?? null,
+    gender: (row.gender as 'boys' | 'girls' | null) ?? null,
+    level: (row.level as string) ?? null,
+    createdAt: row.created_at as string,
+  };
 }
 
 function loadSeasonProfile(): SeasonProfile | null {
@@ -61,14 +96,18 @@ function loadSeasonProfile(): SeasonProfile | null {
     const s = localStorage.getItem('season_profile');
     if (!s) return null;
     const p: SeasonProfile = JSON.parse(s);
-    // Invalidate if season has changed
     if (p.seasonKey !== getCurrentSeason().key) return null;
     return p;
   } catch { return null; }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider
+// ─────────────────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser>(loadUser);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [seasonProfile, setSeasonProfileState] = useState<SeasonProfile | null>(loadSeasonProfile);
 
   const [primaryProgram, setPrimaryProgramState] = useState<Program | null>(() => {
@@ -81,53 +120,163 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('primary_program', JSON.stringify(p));
   };
 
-  // Pin/code login — returns the role on success, false on bad pin
-  const login = (pin: string): AppRole | false => {
-    const role = CREDENTIALS[pin.trim()];
-    if (!role) return false;
-    const displayName =
-      role === 'admin'       ? 'Athletic Director' :
-      role === 'stats_admin' ? 'Stats Admin' :
-      role === 'coach'       ? 'Coach' : 'Guest';
-    const u: AuthUser = { role, displayName };
-    setUser(u);
-    saveUser(u);
-    return role;
+  // ── Subscribe to auth state changes
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      if (data.session) {
+        loadProfile(data.session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (newSession) {
+        loadProfile(newSession.user.id);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function loadProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (error || !data) {
+      setProfile(null);
+      return;
+    }
+    setProfile(rowToProfile(data));
+  }
+
+  async function refreshProfile() {
+    if (session?.user.id) await loadProfile(session.user.id);
+  }
+
+  // ── Auth actions
+  const signUp = async (email: string, password: string, displayName: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: `${window.location.origin}/verify-email`,
+      },
+    });
+    if (error) return { error: error.message };
+    return {};
   };
 
-  // Students just enter a name — no PIN required
-  const loginAsStudent = (name: string) => {
-    const u: AuthUser = { role: 'student', displayName: name.trim() };
-    setUser(u);
-    saveUser(u);
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return {};
   };
 
-  const logout = () => {
-    setUser(DEFAULT_USER);
-    localStorage.removeItem('auth_user');
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
   };
 
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  // ── Admin actions
+  const updateUserRole = async (userId: string, role: AppRole) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId);
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  const fetchAllProfiles = async (): Promise<Profile[]> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(rowToProfile);
+  };
+
+  const deleteProfile = async (userId: string) => {
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  // ── Season profile
   const setSeasonProfile = (p: SeasonProfile) => {
     setSeasonProfileState(p);
     localStorage.setItem('season_profile', JSON.stringify(p));
   };
 
+  // ── Derived user
+  const devOverride = isLocalhost && !session;
+  const user: AuthUser = devOverride
+    ? DEV_USER
+    : profile
+    ? {
+        role: profile.role,
+        displayName: profile.displayName || profile.email.split('@')[0],
+        email: profile.email,
+        sport: profile.sport ?? undefined,
+      }
+    : DEFAULT_USER;
+
+  // Authenticated viewers don't need the season-gate modal (they have a profile)
+  const needsSeasonLogin = !session && !devOverride && seasonProfile === null;
+
   return (
     <AuthContext.Provider value={{
       user,
+      profile,
+      session,
+      loading,
       isAdmin:        user.role === 'admin',
       isStatsAdmin:   user.role === 'stats_admin',
       isCoach:        user.role === 'coach',
       isStudent:      user.role === 'student',
-      isAuthenticated: user.role !== 'viewer',
+      isAuthenticated: !!session || devOverride,
       primaryProgram,
       setPrimaryProgram,
-      login,
-      loginAsStudent,
-      logout,
+      signUp,
+      signIn,
+      signOut,
+      sendPasswordReset,
+      updatePassword,
+      refreshProfile,
+      updateUserRole,
+      fetchAllProfiles,
+      deleteProfile,
       seasonProfile,
       setSeasonProfile,
-      needsSeasonLogin: seasonProfile === null,
+      needsSeasonLogin,
     }}>
       {children}
     </AuthContext.Provider>

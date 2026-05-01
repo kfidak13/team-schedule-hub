@@ -89,8 +89,8 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Link
-              to="/admin-login"
-              className="flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-medium text-white"
+              to="/admin/users"
+              className="flex items-center gap-1 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-2.5 py-1 text-xs font-medium text-[#D4AF37]"
             >
               <ShieldCheck className="h-3 w-3" />
               Admin
